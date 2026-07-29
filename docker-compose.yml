@@ -1,0 +1,11 @@
+services:
+  iconnest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iconnest
+    restart: unless-stopped
+    ports:
+      - "${ICONNEST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
