@@ -17,7 +17,7 @@
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "lucide-react": "^0.468.0",
-    "next": "16.2.6",
+    "next": "16.2.12",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -40,5 +40,9 @@
     "wrangler": "4.92.0"
   },
   "type": "module",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "postcss": "8.5.25",
+    "sharp": "0.35.3"
+  }
 }
