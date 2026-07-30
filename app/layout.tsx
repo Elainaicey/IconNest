@@ -14,14 +14,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(origin),
-    title: "IconNest — 你的图标，都有归处",
+    title: "IconNest — 把图标轻轻收进灵感花园",
     description:
-      "收集、搜索、整理与交付图标的现代化本地图标管理工作台。",
+      "一个清新、本地优先的图标管理工作台：搜索、收集、批量整理并交付你喜欢的图标。",
     applicationName: "IconNest",
     openGraph: {
-      title: "IconNest — Your icons. One beautiful home.",
+      title: "IconNest — A softer home for every icon.",
       description:
-        "A beautiful, local-first workspace for collecting and managing icons.",
+        "A fresh, local-first workspace for collecting, organizing, and shipping icons.",
       type: "website",
       locale: "zh_CN",
       images: [
@@ -35,9 +35,9 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "IconNest — Your icons. One beautiful home.",
+      title: "IconNest — A softer home for every icon.",
       description:
-        "A beautiful, local-first workspace for collecting and managing icons.",
+        "A fresh, local-first workspace for collecting, organizing, and shipping icons.",
       images: [`${origin}/og.png`],
     },
   };

@@ -1,11 +1,12 @@
 services:
   iconnest:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/elainaicey/iconnest:latest
+    pull_policy: always
     container_name: iconnest
     restart: unless-stopped
     ports:
       - "${ICONNEST_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
+    security_opt:
+      - no-new-privileges:true
