@@ -1,0 +1,7 @@
+services:
+  iconnest:
+    image: iconnest:local
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile

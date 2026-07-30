@@ -4,14 +4,18 @@ import {
   Archive,
   ArrowDownToLine,
   ArrowUpRight,
+  ArrowUpDown,
   Boxes,
   Check,
-  ChevronDown,
+  CheckCheck,
+  CheckSquare2,
   Clock3,
+  ClipboardPaste,
   Code2,
   Copy,
   Download,
   FileJson,
+  FlipHorizontal2,
   FolderHeart,
   FolderPlus,
   Grid2X2,
@@ -27,10 +31,13 @@ import {
   PanelLeftClose,
   Plus,
   RotateCcw,
+  RotateCw,
   Search,
-  Settings2,
+  SlidersHorizontal,
   Sparkles,
+  Square,
   Sun,
+  Tag,
   Trash2,
   Upload,
   X,
@@ -55,6 +62,7 @@ type Section =
   | "collection";
 
 type ViewMode = "grid" | "list";
+type SortMode = "newest" | "name" | "source";
 
 type IconItem = {
   id: string;
@@ -94,7 +102,7 @@ const SOURCE_FILTERS: SourceFilter[] = [
     label: "全部来源",
     prefix: "",
     description: "跨图标库搜索",
-    tone: "#c9f65b",
+    tone: "#e8e1f7",
   },
   {
     label: "Lucide",
@@ -260,9 +268,22 @@ const SOURCE_LABELS: Record<string, string> = {
   solar: "Solar",
 };
 
+const SOURCE_TONES: Record<string, string> = {
+  Lucide: "#f9dbe5",
+  Tabler: "#dbeefe",
+  Phosphor: "#e8ddfb",
+  Remix: "#dff1e8",
+  Solar: "#eee6cf",
+  本地上传: "#f4e2d5",
+};
+
 function getSourceLabel(iconifyId: string) {
   const prefix = iconifyId.split(":")[0];
   return SOURCE_LABELS[prefix] ?? prefix.toUpperCase();
+}
+
+function getSourceTone(source: string) {
+  return SOURCE_TONES[source] ?? "#e8e4f4";
 }
 
 function getIconName(iconifyId: string) {
@@ -388,6 +409,9 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [filterSource, setFilterSource] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sourcePrefix, setSourcePrefix] = useState("");
   const [exploreQuery, setExploreQuery] = useState("arrow");
   const [exploreResults, setExploreResults] = useState<string[]>([
@@ -408,7 +432,11 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [hydrated, setHydrated] = useState(false);
-  const [detailColor, setDetailColor] = useState("#141d1a");
+  const [detailColor, setDetailColor] = useState("#413a56");
+  const [detailSize, setDetailSize] = useState(92);
+  const [detailRotation, setDetailRotation] = useState(0);
+  const [detailFlip, setDetailFlip] = useState(false);
+  const [detailTagInput, setDetailTagInput] = useState("");
   const uploadRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -495,6 +523,7 @@ export default function Home() {
         return true;
       })
       .filter((icon) => {
+        if (filterSource !== "all" && icon.source !== filterSource) return false;
         if (!normalized) return true;
         return [icon.name, icon.source, icon.collection, ...icon.tags]
           .join(" ")
@@ -504,9 +533,24 @@ export default function Home() {
       .sort((a, b) => {
         if (section === "recent")
           return (b.viewedAt ?? 0) - (a.viewedAt ?? 0);
+        if (sortMode === "name")
+          return a.name.localeCompare(b.name, "zh-CN");
+        if (sortMode === "source")
+          return a.source.localeCompare(b.source, "zh-CN");
         return b.addedAt - a.addedAt;
       });
-  }, [library, query, section, selectedCollection]);
+  }, [
+    filterSource,
+    library,
+    query,
+    section,
+    selectedCollection,
+    sortMode,
+  ]);
+
+  const availableSources = [
+    ...new Set(activeIcons.map((icon) => icon.source)),
+  ].sort();
 
   const sectionTitle = useMemo(() => {
     if (section === "explore") return "探索图标";
@@ -526,6 +570,7 @@ export default function Home() {
     setSelectedCollection(collection);
     setMobileMenuOpen(false);
     setQuery("");
+    setSelectedIds([]);
   }
 
   function updateIcon(id: string, patch: Partial<IconItem>) {
@@ -537,6 +582,11 @@ export default function Home() {
   function openIcon(id: string) {
     updateIcon(id, { viewedAt: currentTimestamp() });
     setSelectedId(id);
+    setDetailColor("#413a56");
+    setDetailSize(92);
+    setDetailRotation(0);
+    setDetailFlip(false);
+    setDetailTagInput("");
   }
 
   function toggleFavorite(id: string) {
@@ -544,6 +594,80 @@ export default function Home() {
     if (!item) return;
     updateIcon(id, { favorite: !item.favorite });
     notify(item.favorite ? "已取消收藏" : "已加入收藏");
+  }
+
+  function toggleSelection(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }
+
+  function toggleSelectAllVisible() {
+    const visibleIds = visibleIcons.map((icon) => icon.id);
+    const allSelected = visibleIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((current) =>
+      allSelected
+        ? current.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...current, ...visibleIds])],
+    );
+  }
+
+  function bulkFavorite() {
+    const selected = new Set(selectedIds);
+    setLibrary((current) =>
+      current.map((icon) =>
+        selected.has(icon.id) ? { ...icon, favorite: true } : icon,
+      ),
+    );
+    notify(`已收藏 ${selectedIds.length} 枚图标`);
+  }
+
+  function bulkMove(collection: string) {
+    if (!collection) return;
+    const selected = new Set(selectedIds);
+    setLibrary((current) =>
+      current.map((icon) =>
+        selected.has(icon.id) ? { ...icon, collection } : icon,
+      ),
+    );
+    notify(`已移动到「${collection}」`);
+  }
+
+  function bulkTrash() {
+    const selected = new Set(selectedIds);
+    setLibrary((current) =>
+      current.map((icon) =>
+        selected.has(icon.id) ? { ...icon, trashed: true } : icon,
+      ),
+    );
+    setSelectedIds([]);
+    notify("所选图标已移至回收站");
+  }
+
+  function exportSelected() {
+    const selected = new Set(selectedIds);
+    const icons = library.filter((icon) => selected.has(icon.id));
+    downloadBlob(
+      new Blob(
+        [
+          JSON.stringify(
+            {
+              app: "IconNest",
+              version: "0.1.0",
+              exportedAt: new Date().toISOString(),
+              icons,
+            },
+            null,
+            2,
+          ),
+        ],
+        { type: "application/json" },
+      ),
+      `iconnest-selection-${new Date().toISOString().slice(0, 10)}.json`,
+    );
+    notify(`已导出 ${icons.length} 枚图标`);
   }
 
   async function getSvg(icon: IconItem) {
@@ -583,6 +707,32 @@ export default function Home() {
     }
   }
 
+  async function copyHtml(icon: IconItem) {
+    try {
+      await navigator.clipboard.writeText(await getSvg(icon));
+      notify("HTML SVG 已复制");
+    } catch {
+      notify("HTML 复制失败，请稍后重试");
+    }
+  }
+
+  async function copyCss(icon: IconItem) {
+    try {
+      const slug = icon.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const source = icon.iconifyId
+        ? iconifyUrl(icon.iconifyId)
+        : svgDataUrl(await getSvg(icon));
+      const snippet = `.icon-${slug || "iconnest"} {\n  display: inline-block;\n  width: 1em;\n  height: 1em;\n  background: currentColor;\n  -webkit-mask: url("${source}") center / contain no-repeat;\n  mask: url("${source}") center / contain no-repeat;\n}`;
+      await navigator.clipboard.writeText(snippet);
+      notify("CSS Mask 代码已复制");
+    } catch {
+      notify("CSS 生成失败，请稍后重试");
+    }
+  }
+
   async function downloadSvg(icon: IconItem) {
     try {
       const svg = await getSvg(icon);
@@ -607,23 +757,59 @@ export default function Home() {
     try {
       const svg = sanitizeSvg(await file.text());
       const name = file.name.replace(/\.svg$/i, "") || "Untitled icon";
-      const item: IconItem = {
-        id: `upload-${crypto.randomUUID()}`,
-        name,
-        svg,
-        source: "本地上传",
-        tags: ["custom"],
-        collection: collections[0] ?? "未分类",
-        favorite: false,
-        addedAt: currentTimestamp(),
-      };
-      setLibrary((current) => [item, ...current]);
-      navigate("library");
-      setSelectedId(item.id);
-      notify("图标已安全导入");
+      importCustomSvg(svg, name);
     } catch (error) {
       notify(error instanceof Error ? error.message : "SVG 导入失败");
     }
+  }
+
+  function importCustomSvg(svg: string, name: string) {
+    if (library.some((icon) => icon.svg === svg && !icon.trashed)) {
+      notify("这枚 SVG 已经在图标库中");
+      return;
+    }
+    const item: IconItem = {
+      id: `upload-${crypto.randomUUID()}`,
+      name,
+      svg,
+      source: "本地上传",
+      tags: ["custom"],
+      collection: collections[0] ?? "未分类",
+      favorite: false,
+      addedAt: currentTimestamp(),
+    };
+    setLibrary((current) => [item, ...current]);
+    navigate("library");
+    setSelectedId(item.id);
+    notify("图标已安全导入");
+  }
+
+  async function pasteSvg() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const svg = sanitizeSvg(text);
+      importCustomSvg(svg, "Pasted icon");
+    } catch {
+      notify("剪贴板中没有可用的 SVG");
+    }
+  }
+
+  function addDetailTag() {
+    if (!selectedIcon) return;
+    const tag = detailTagInput.trim().replace(/^#/, "").toLowerCase();
+    if (!tag || selectedIcon.tags.includes(tag)) {
+      setDetailTagInput("");
+      return;
+    }
+    updateIcon(selectedIcon.id, { tags: [...selectedIcon.tags, tag] });
+    setDetailTagInput("");
+  }
+
+  function removeDetailTag(tag: string) {
+    if (!selectedIcon) return;
+    updateIcon(selectedIcon.id, {
+      tags: selectedIcon.tags.filter((item) => item !== tag),
+    });
   }
 
   async function searchExplore(
@@ -765,7 +951,7 @@ export default function Home() {
             <Layers3 size={20} strokeWidth={2.2} />
           </span>
           <span className="brand-name">IconNest</span>
-          <span className="version-badge">0.1</span>
+          <span className="version-badge">PREVIEW</span>
           <button
             className="mobile-close"
             onClick={() => setMobileMenuOpen(false)}
@@ -897,6 +1083,12 @@ export default function Home() {
             )}
           </div>
           <div className="topbar-actions">
+            <div className="palette-pebbles" aria-label="IconNest 淡彩主题">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
             <button
               className="icon-button"
               onClick={() =>
@@ -924,15 +1116,15 @@ export default function Home() {
               <div className="hero-copy">
                 <span className="hero-kicker">
                   <Sparkles size={14} />
-                  YOUR ICON HOME
+                  A SOFTER ICON WORKSPACE
                 </span>
                 <h1>
-                  让每一枚图标，
+                  把喜欢的图标，
                   <br />
-                  都回到该在的位置。
+                  轻轻收进灵感花园。
                 </h1>
                 <p>
-                  收集、整理并交付你喜爱的图标。一个轻盈、私密，且真正属于你的创意工作台。
+                  从优秀图标库发现灵感，上传自己的 SVG，再用集合、标签与批量工具把它们整理得井井有条。
                 </p>
                 <div className="hero-actions">
                   <button
@@ -948,6 +1140,10 @@ export default function Home() {
                   >
                     <Upload size={15} />
                     上传 SVG
+                  </button>
+                  <button className="hero-ghost" onClick={pasteSvg}>
+                    <ClipboardPaste size={15} />
+                    粘贴 SVG
                   </button>
                 </div>
               </div>
@@ -1115,6 +1311,35 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="library-tools">
+                  <label className="soft-select">
+                    <SlidersHorizontal size={14} />
+                    <select
+                      value={filterSource}
+                      onChange={(event) => setFilterSource(event.target.value)}
+                      aria-label="按来源筛选"
+                    >
+                      <option value="all">全部来源</option>
+                      {availableSources.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="soft-select">
+                    <ArrowUpDown size={14} />
+                    <select
+                      value={sortMode}
+                      onChange={(event) =>
+                        setSortMode(event.target.value as SortMode)
+                      }
+                      aria-label="排序方式"
+                    >
+                      <option value="newest">最近添加</option>
+                      <option value="name">名称排序</option>
+                      <option value="source">来源排序</option>
+                    </select>
+                  </label>
                   <div className="view-toggle" aria-label="视图模式">
                     <button
                       className={viewMode === "grid" ? "active" : ""}
@@ -1131,26 +1356,111 @@ export default function Home() {
                       <List size={17} />
                     </button>
                   </div>
-                  <button className="filter-button">
-                    <Settings2 size={15} />
-                    筛选
-                    <ChevronDown size={14} />
-                  </button>
                 </div>
               </div>
 
               {visibleIcons.length ? (
-                <div
-                  className={
-                    viewMode === "grid" ? "icon-grid" : "icon-list"
-                  }
-                >
+                <>
+                  <div
+                    className={`bulk-toolbar ${
+                      selectedIds.length ? "active" : ""
+                    }`}
+                  >
+                    <button
+                      className="select-all-button"
+                      onClick={toggleSelectAllVisible}
+                    >
+                      {visibleIcons.every((icon) =>
+                        selectedIds.includes(icon.id),
+                      ) ? (
+                        <CheckSquare2 size={16} />
+                      ) : (
+                        <Square size={16} />
+                      )}
+                      {selectedIds.length
+                        ? `已选择 ${selectedIds.length} 枚`
+                        : "批量选择"}
+                    </button>
+                    {selectedIds.length > 0 && (
+                      <>
+                        <span className="bulk-divider" />
+                        <button onClick={bulkFavorite}>
+                          <Heart size={15} />
+                          收藏
+                        </button>
+                        <label>
+                          <FolderPlus size={15} />
+                          <select
+                            defaultValue=""
+                            onChange={(event) => {
+                              bulkMove(event.target.value);
+                              event.target.value = "";
+                            }}
+                            aria-label="批量移动到集合"
+                          >
+                            <option value="" disabled>
+                              移动到…
+                            </option>
+                            {collections.map((collection) => (
+                              <option key={collection} value={collection}>
+                                {collection}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button onClick={exportSelected}>
+                          <FileJson size={15} />
+                          导出
+                        </button>
+                        <button className="bulk-danger" onClick={bulkTrash}>
+                          <Trash2 size={15} />
+                          删除
+                        </button>
+                        <button
+                          className="bulk-clear"
+                          onClick={() => setSelectedIds([])}
+                          aria-label="清除选择"
+                        >
+                          <X size={15} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <div
+                    className={
+                      viewMode === "grid" ? "icon-grid" : "icon-list"
+                    }
+                  >
                   {visibleIcons.map((icon, index) => (
                     <article
-                      className="library-card"
+                      className={`library-card ${
+                        selectedIds.includes(icon.id) ? "selected" : ""
+                      }`}
                       key={icon.id}
-                      style={{ "--card-index": index } as CSSProperties}
+                      style={
+                        {
+                          "--card-index": index,
+                          "--card-tint": getSourceTone(icon.source),
+                        } as CSSProperties
+                      }
                     >
+                      {section !== "trash" && (
+                        <button
+                          className="card-select"
+                          onClick={() => toggleSelection(icon.id)}
+                          aria-label={
+                            selectedIds.includes(icon.id)
+                              ? `取消选择 ${icon.name}`
+                              : `选择 ${icon.name}`
+                          }
+                        >
+                          {selectedIds.includes(icon.id) ? (
+                            <CheckCheck size={14} />
+                          ) : (
+                            <Square size={14} />
+                          )}
+                        </button>
+                      )}
                       <button
                         className="card-main"
                         onClick={() => openIcon(icon.id)}
@@ -1201,7 +1511,8 @@ export default function Home() {
                       </div>
                     </article>
                   ))}
-                </div>
+                  </div>
+                </>
               ) : (
                 <div className="empty-state">
                   <span className="empty-icon">
@@ -1276,17 +1587,69 @@ export default function Home() {
 
             <div className="detail-preview">
               <div className="preview-grid-bg" />
-              <IconArtwork
-                item={selectedIcon}
-                size={92}
-                color={detailColor}
-              />
-              <span className="preview-size">24 × 24</span>
+              <span
+                className="detail-art-transform"
+                style={{
+                  transform: `rotate(${detailRotation}deg) scaleX(${
+                    detailFlip ? -1 : 1
+                  })`,
+                }}
+              >
+                <IconArtwork
+                  item={selectedIcon}
+                  size={detailSize}
+                  color={detailColor}
+                />
+              </span>
+              <span className="preview-size">{detailSize} px</span>
+            </div>
+
+            <div className="preview-controls">
+              <label>
+                <span>预览尺寸</span>
+                <input
+                  type="range"
+                  min="32"
+                  max="140"
+                  step="4"
+                  value={detailSize}
+                  onChange={(event) =>
+                    setDetailSize(Number(event.target.value))
+                  }
+                />
+              </label>
+              <button
+                className={detailRotation ? "active" : ""}
+                onClick={() =>
+                  setDetailRotation((current) => (current + 90) % 360)
+                }
+                aria-label="旋转预览"
+              >
+                <RotateCw size={16} />
+                {detailRotation}°
+              </button>
+              <button
+                className={detailFlip ? "active" : ""}
+                onClick={() => setDetailFlip((current) => !current)}
+                aria-label="水平翻转预览"
+              >
+                <FlipHorizontal2 size={16} />
+                翻转
+              </button>
             </div>
 
             <div className="detail-title">
               <div>
-                <h3>{selectedIcon.name}</h3>
+                <input
+                  className="detail-name-input"
+                  value={selectedIcon.name}
+                  onChange={(event) =>
+                    updateIcon(selectedIcon.id, {
+                      name: event.target.value,
+                    })
+                  }
+                  aria-label="图标名称"
+                />
                 <span>{selectedIcon.iconifyId ?? "自定义 SVG"}</span>
               </div>
               <button
@@ -1329,15 +1692,36 @@ export default function Home() {
                 </select>
               </label>
               <div className="tag-field">
-                <span>标签</span>
-                <div>
-                  {selectedIcon.tags.length ? (
-                    selectedIcon.tags.map((tag) => (
-                      <span key={tag}>#{tag}</span>
-                    ))
-                  ) : (
-                    <small>暂无标签</small>
-                  )}
+                <span>
+                  <Tag size={13} />
+                  标签
+                </span>
+                <div className="tag-editor">
+                  <div className="tag-list">
+                    {selectedIcon.tags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => removeDetailTag(tag)}
+                        title="点击移除"
+                      >
+                        #{tag}
+                        <X size={10} />
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={detailTagInput}
+                    onChange={(event) => setDetailTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addDetailTag();
+                      }
+                    }}
+                    onBlur={addDetailTag}
+                    placeholder="+ 添加标签"
+                    aria-label="添加标签"
+                  />
                 </div>
               </div>
             </div>
@@ -1357,6 +1741,20 @@ export default function Home() {
                   <small>组件代码</small>
                 </span>
               </button>
+              <button onClick={() => copyCss(selectedIcon)}>
+                <Boxes size={17} />
+                <span>
+                  <strong>复制 CSS</strong>
+                  <small>Mask 样式</small>
+                </span>
+              </button>
+              <button onClick={() => copyHtml(selectedIcon)}>
+                <Code2 size={17} />
+                <span>
+                  <strong>复制 HTML</strong>
+                  <small>内联 SVG</small>
+                </span>
+              </button>
               <button onClick={() => downloadSvg(selectedIcon)}>
                 <Download size={17} />
                 <span>
@@ -1364,11 +1762,7 @@ export default function Home() {
                   <small>.svg 格式</small>
                 </span>
               </button>
-              <button
-                onClick={() => {
-                  exportLibrary();
-                }}
-              >
+              <button onClick={exportLibrary}>
                 <FileJson size={17} />
                 <span>
                   <strong>备份图标库</strong>

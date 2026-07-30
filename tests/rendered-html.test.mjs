@@ -29,7 +29,9 @@ test("server-renders the IconNest application shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>IconNest/);
-  assert.match(html, /让每一枚图标/);
+  assert.match(html, /把喜欢的图标/);
+  assert.match(html, /批量选择/);
+  assert.match(html, /PREVIEW/);
   assert.match(html, /探索图标/);
   assert.match(html, /我的图标库/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
