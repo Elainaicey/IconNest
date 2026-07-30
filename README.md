@@ -38,7 +38,7 @@ IconNest 是一个现代化、本地优先的图标综合管理工作台。它�
 
 ## 快速开始
 
-需要 Node.js `>= 22.13.0`。
+需要 Node.js `>= 24.11.0 <25`，推荐使用 `.nvmrc` 中锁定的 Node.js 24 LTS 版本。
 
 ```bash
 git clone https://github.com/Elainaicey/IconNest.git
