@@ -1,32 +1,31 @@
 # Changelog
 
-All notable changes to IconNest are documented here. The project follows
-[Semantic Versioning](https://semver.org/) after its first stable release.
+IconNest uses [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - Unreleased preview
+## [0.1.0] - 2026-07-31
 
-### Added
+Initial public version.
 
-- IndexedDB workspace persistence with automatic localStorage migration and
-  visible save status
-- Multi-file and drag-and-drop SVG import, ZIP asset export and 512px PNG export
-- Command menu, collapsible navigation and collection rename/delete management
-- Acrylic pastel design system, responsive workspace and reduced-motion particle
-  ambience
-- Hardened single-container Compose profile, Caddy example and production
-  operations guide
+### Application
 
-### Changed
+- Local-first icon library backed by IndexedDB
+- Multi-file SVG import with sanitization and duplicate detection
+- Iconify search across five curated open-source icon sets
+- Collections, tags, favorites, recent items and trash
+- Batch actions, JSON backup, SVG ZIP export and PNG export
+- SVG, HTML, React and CSS Mask delivery formats
+- Command menu, collapsible sidebar, light/dark themes and responsive layouts
 
-- Replaced the template runtime with standard Next.js standalone output for a
-  smaller, clearer production image
-- Simplified the project tree by removing unused D1, Cloudflare Worker and Sites
-  starter code
-- Expanded CI with type checking, multi-architecture container builds, SBOM and
-  provenance generation
+### Operations
+
+- Next.js standalone production runtime on Node.js 24
+- Hardened single-container Docker Compose profile
+- Caddy configuration for `iconnest.ushio.cc`
+- Multi-architecture GHCR images with SBOM and provenance
+- Automated type, lint, page, API, storage and deployment checks
 
 ### Security
 
-- Production container runs as a non-root user with a read-only filesystem,
-  dropped capabilities, resource limits and a dedicated health endpoint
-- Production dependency audit currently reports no known vulnerabilities
+- Non-root container with read-only filesystem and dropped Linux capabilities
+- Validated same-origin Iconify proxy routes
+- No known production dependency vulnerabilities at publication time

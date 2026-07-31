@@ -39,7 +39,7 @@ export async function exportIconsZip(icons: IconItem[]) {
     JSON.stringify(
       {
         app: "IconNest",
-        version: 3,
+        version: 1,
         exportedAt: new Date().toISOString(),
         icons: manifest,
       },

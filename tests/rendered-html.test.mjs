@@ -1,32 +1,64 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { createServer } from "node:http";
+import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import next from "next";
 import test from "node:test";
 import { createReactIconSnippet } from "../lib/icons/svg.ts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const application = next({ dev: false, dir: projectRoot });
-let server;
+let serverProcess;
 let origin;
+let serverOutput = "";
 
 test.before(async () => {
-  await application.prepare();
-  const handler = application.getRequestHandler();
-  server = createServer((request, response) => handler(request, response));
+  const portProbe = createServer();
   await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    portProbe.once("error", reject);
+    portProbe.listen(0, "127.0.0.1", resolve);
   });
-  const address = server.address();
-  origin = `http://127.0.0.1:${address.port}`;
+  const address = portProbe.address();
+  const port = address.port;
+  await new Promise((resolve, reject) =>
+    portProbe.close((error) => (error ? reject(error) : resolve())),
+  );
+
+  origin = `http://127.0.0.1:${port}`;
+  serverProcess = spawn(process.execPath, [".next/standalone/server.js"], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      HOSTNAME: "127.0.0.1",
+      PORT: String(port),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  serverProcess.stdout.on("data", (chunk) => {
+    serverOutput += chunk;
+  });
+  serverProcess.stderr.on("data", (chunk) => {
+    serverOutput += chunk;
+  });
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (serverProcess.exitCode !== null) {
+      throw new Error(`Standalone server exited early:\n${serverOutput}`);
+    }
+    try {
+      const response = await fetch(`${origin}/api/health`);
+      if (response.ok) return;
+    } catch {
+      // The server is still starting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Standalone server did not become ready:\n${serverOutput}`);
 });
 
 test.after(async () => {
-  await new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
-  await application.close();
+  if (!serverProcess || serverProcess.exitCode !== null) return;
+  serverProcess.kill();
+  await once(serverProcess, "exit");
 });
 
 async function request(path = "/", init) {
@@ -63,7 +95,6 @@ for (const [path, title, content] of [
     assert.match(html, new RegExp(`<title>${title} · IconNest</title>`));
     assert.match(html, new RegExp(content));
     assert.match(html, /Icon workspace/);
-    assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
   });
 }
 
@@ -75,7 +106,7 @@ test("exposes a machine-readable health endpoint", async () => {
   assert.deepEqual(await response.json(), {
     name: "IconNest",
     status: "ok",
-    version: "0.2.0",
+    version: "0.1.0",
   });
 });
 

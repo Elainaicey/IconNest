@@ -17,4 +17,4 @@ affected version, reproduction steps and expected impact.
 - Third-party icons are requested from Iconify through validated same-origin API
   routes. Individual icon-set licenses still apply.
 
-Only the current `main` branch receives security fixes during the preview phase.
+Security fixes are provided for the current `0.1.x` line on the `main` branch.

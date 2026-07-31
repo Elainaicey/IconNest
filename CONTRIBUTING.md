@@ -20,5 +20,5 @@ npm test
 
 UI changes should preserve keyboard focus, readable contrast, responsive layouts
 and reduced-motion behavior. Use semantic Radix color steps instead of arbitrary
-decorative colors. New persistence code must include a migration path and must
-not silently upload private icon content.
+decorative colors. Persistence changes must keep the schema, backup format and
+tests aligned, and must never silently upload private icon content.

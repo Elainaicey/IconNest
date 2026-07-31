@@ -154,9 +154,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setWorkspaceBytes(workspaceSize(loaded.snapshot));
         setLastSavedAt(Date.now());
         setStorageState("saved");
-        if (loaded.migrated) setToast("已将旧版数据安全迁移到浏览器数据库");
         setTheme(loadTheme());
-        setSidebarCollapsed(localStorage.getItem("iconnest.sidebar.v1") === "collapsed");
+        setSidebarCollapsed(localStorage.getItem("iconnest.sidebar") === "collapsed");
       } catch {
         if (!active) return;
         setIcons(SEED_LIBRARY);
@@ -173,7 +172,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    const snapshot = { version: 3 as const, icons, collections };
+    const snapshot = { version: 1 as const, icons, collections };
     const timeout = window.setTimeout(() => {
       setStorageState("saving");
       void saveWorkspace(snapshot, storageDriver)
@@ -193,7 +192,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     localStorage.setItem(
-      "iconnest.sidebar.v1",
+      "iconnest.sidebar",
       sidebarCollapsed ? "collapsed" : "expanded",
     );
   }, [hydrated, sidebarCollapsed]);
@@ -521,7 +520,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const exportWorkspace = useCallback(() => {
     const payload = {
       app: "IconNest",
-      version: 3,
+      version: 1,
       exportedAt: new Date().toISOString(),
       icons,
       collections,

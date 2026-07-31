@@ -6,31 +6,12 @@ import type {
   WorkspaceSnapshot,
 } from "./types";
 
-const DATABASE_NAME = "iconnest";
+const DATABASE_NAME = "iconnest-workspace";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "workspace";
-const DATABASE_WORKSPACE_KEY = "current";
-const WORKSPACE_KEY = "iconnest.workspace.v3";
-const PREVIOUS_WORKSPACE_KEY = "iconnest.workspace.v2";
-const LEGACY_LIBRARY_KEY = "iconnest.library.v1";
-const LEGACY_COLLECTIONS_KEY = "iconnest.collections.v1";
-const THEME_KEY = "iconnest.theme.v1";
-
-const ICONIFY_ID_REPLACEMENTS: Record<string, string> = {
-  "tabler:shapes": "tabler:geometry",
-};
-
-function migrateIconItem(icon: IconItem): IconItem {
-  if (!icon.iconifyId) return icon;
-  const replacement = ICONIFY_ID_REPLACEMENTS[icon.iconifyId];
-  if (!replacement) return icon;
-
-  return {
-    ...icon,
-    name: icon.id === "seed-shapes" ? "Geometry" : icon.name,
-    iconifyId: replacement,
-  };
-}
+const DATABASE_WORKSPACE_KEY = "primary";
+const WORKSPACE_KEY = "iconnest.workspace";
+const THEME_KEY = "iconnest.theme";
 
 function isIconItem(value: unknown): value is IconItem {
   if (!value || typeof value !== "object") return false;
@@ -50,18 +31,26 @@ function isIconItem(value: unknown): value is IconItem {
 export function validateSnapshot(value: unknown): WorkspaceSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const snapshot = value as Partial<WorkspaceSnapshot>;
-  if (!Array.isArray(snapshot.icons) || !Array.isArray(snapshot.collections)) {
+  if (
+    snapshot.version !== 1 ||
+    !Array.isArray(snapshot.icons) ||
+    !Array.isArray(snapshot.collections)
+  ) {
     return null;
   }
 
-  const icons = snapshot.icons.filter(isIconItem).map(migrateIconItem);
-  const collections = snapshot.collections.filter(
-    (item): item is string => typeof item === "string" && Boolean(item.trim()),
-  );
-  if (!icons.length) return null;
+  const icons = snapshot.icons.filter(isIconItem);
+  const collections = [
+    ...new Set(
+      snapshot.collections
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 
   return {
-    version: 3,
+    version: 1,
     icons,
     collections: collections.length ? collections : [...DEFAULT_COLLECTIONS],
   };
@@ -69,7 +58,7 @@ export function validateSnapshot(value: unknown): WorkspaceSnapshot | null {
 
 function defaultWorkspace(): WorkspaceSnapshot {
   return {
-    version: 3,
+    version: 1,
     icons: SEED_LIBRARY,
     collections: DEFAULT_COLLECTIONS,
   };
@@ -82,30 +71,6 @@ function parseSnapshot(value: string | null) {
   } catch {
     return null;
   }
-}
-
-function loadLegacyWorkspace(): WorkspaceSnapshot | null {
-  const current = parseSnapshot(localStorage.getItem(WORKSPACE_KEY));
-  if (current) return current;
-
-  const previous = parseSnapshot(localStorage.getItem(PREVIOUS_WORKSPACE_KEY));
-  if (previous) return previous;
-
-  const legacyIcons = localStorage.getItem(LEGACY_LIBRARY_KEY);
-  const legacyCollections = localStorage.getItem(LEGACY_COLLECTIONS_KEY);
-  if (legacyIcons) {
-    try {
-      return validateSnapshot({
-        icons: JSON.parse(legacyIcons),
-        collections: legacyCollections
-          ? JSON.parse(legacyCollections)
-          : DEFAULT_COLLECTIONS,
-      });
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -154,28 +119,26 @@ async function writeDatabase(snapshot: WorkspaceSnapshot): Promise<void> {
 export type LoadedWorkspace = {
   snapshot: WorkspaceSnapshot;
   driver: StorageDriver;
-  migrated: boolean;
 };
 
 export async function loadWorkspace(): Promise<LoadedWorkspace> {
   if (typeof indexedDB !== "undefined") {
     try {
       const stored = await readDatabase();
-      if (stored) return { snapshot: stored, driver: "indexeddb", migrated: false };
+      if (stored) return { snapshot: stored, driver: "indexeddb" };
 
-      const legacy = loadLegacyWorkspace();
-      const snapshot = legacy ?? defaultWorkspace();
+      const snapshot = defaultWorkspace();
       await writeDatabase(snapshot);
-      return { snapshot, driver: "indexeddb", migrated: Boolean(legacy) };
+      return { snapshot, driver: "indexeddb" };
     } catch {
       // Private browsing and strict browser policies can disable IndexedDB.
     }
   }
 
   return {
-    snapshot: loadLegacyWorkspace() ?? defaultWorkspace(),
+    snapshot:
+      parseSnapshot(localStorage.getItem(WORKSPACE_KEY)) ?? defaultWorkspace(),
     driver: "localStorage",
-    migrated: false,
   };
 }
 

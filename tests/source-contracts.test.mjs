@@ -18,14 +18,14 @@ test("production Compose remains a hardened single-container profile", async () 
   assert.match(compose, /\/api\/health/);
 });
 
-test("workspace persistence is versioned and backed by IndexedDB", async () => {
+test("workspace persistence is a clean version-one IndexedDB schema", async () => {
   const [storage, types] = await Promise.all([
     source("lib/icons/storage.ts"),
     source("lib/icons/types.ts"),
   ]);
   assert.match(storage, /indexedDB\.open/);
-  assert.match(storage, /PREVIOUS_WORKSPACE_KEY/);
-  assert.match(types, /version: 3/);
+  assert.match(storage, /iconnest-workspace/);
+  assert.match(types, /version: 1/);
 });
 
 test("deployment kit documents the stateless browser-data model", async () => {

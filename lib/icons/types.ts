@@ -27,7 +27,7 @@ export type IconItem = {
 };
 
 export type WorkspaceSnapshot = {
-  version: 3;
+  version: 1;
   icons: IconItem[];
   collections: string[];
 };

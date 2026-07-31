@@ -1,12 +1,6 @@
 .git
 .gitignore
 .next
-.vinext
-.wrangler
-dist
 node_modules
 npm-debug.log*
-.devserver.*.log
 .env*
-outputs
-work

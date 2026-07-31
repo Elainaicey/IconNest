@@ -23,9 +23,7 @@ LABEL org.opencontainers.image.source="https://github.com/Elainaicey/IconNest"
 LABEL org.opencontainers.image.description="A fresh, local-first icon library and management workspace."
 LABEL org.opencontainers.image.licenses="MIT"
 
-COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/.next/standalone ./
-COPY --from=build --chown=node:node /app/.next/static ./.next/static
 
 EXPOSE 3000
 

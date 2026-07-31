@@ -18,20 +18,11 @@ export const metadata: Metadata = {
     description: "A local-first workspace for organizing and shipping icons.",
     type: "website",
     locale: "zh_CN",
-    images: [
-      {
-        url: "/og.png",
-        width: 1792,
-        height: 1024,
-        alt: "IconNest 图标管理工作台",
-      },
-    ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "IconNest · Icon workspace",
     description: "A local-first workspace for organizing and shipping icons.",
-    images: ["/og.png"],
   },
 };
 
