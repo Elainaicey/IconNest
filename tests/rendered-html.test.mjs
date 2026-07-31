@@ -1,27 +1,40 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
+import next from "next";
 import test from "node:test";
 import { createReactIconSnippet } from "../lib/icons/svg.ts";
 
-async function request(path = "/", init) {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${path}`);
-  const { default: worker } = await import(workerUrl.href);
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+const application = next({ dev: false, dir: projectRoot });
+let server;
+let origin;
 
-  return worker.fetch(
-    new Request(`http://localhost${path}`, {
-      headers: { accept: "text/html", host: "localhost" },
-      ...init,
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
+test.before(async () => {
+  await application.prepare();
+  const handler = application.getRequestHandler();
+  server = createServer((request, response) => handler(request, response));
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  origin = `http://127.0.0.1:${address.port}`;
+});
+
+test.after(async () => {
+  await new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
   );
+  await application.close();
+});
+
+async function request(path = "/", init) {
+  return fetch(`${origin}${path}`, {
+    headers: { accept: "text/html", host: "localhost" },
+    redirect: "manual",
+    ...init,
+  });
 }
 
 test("redirects the root URL to the icon library", async () => {

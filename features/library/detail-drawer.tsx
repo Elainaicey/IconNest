@@ -8,6 +8,7 @@ import {
   Download,
   FlipHorizontal2,
   Heart,
+  ImageDown,
   RotateCw,
   Tag,
   Trash2,
@@ -32,6 +33,7 @@ export function DetailDrawer() {
     copyCss,
     copyHtml,
     downloadSvg,
+    downloadPng,
   } = useLibrary();
   const [previewColor, setPreviewColor] = useState("#3e3eae");
   const [previewSize, setPreviewSize] = useState(96);
@@ -266,14 +268,14 @@ export function DetailDrawer() {
                     </span>
                   </button>
                 </div>
-                <button
-                  className="button button-soft detail-download"
-                  onClick={() => downloadSvg(selectedIcon)}
-                  type="button"
-                >
-                  <Download size={16} />
-                  下载 SVG 文件
-                </button>
+                <div className="download-row">
+                  <button className="button button-soft detail-download" onClick={() => downloadSvg(selectedIcon)} type="button">
+                    <Download size={16} /> 下载 SVG
+                  </button>
+                  <button className="button button-soft detail-download" onClick={() => downloadPng(selectedIcon, 512)} type="button">
+                    <ImageDown size={16} /> 下载 PNG
+                  </button>
+                </div>
               </section>
 
               <section className="source-row">

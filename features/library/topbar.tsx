@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Moon, Search, Sun, Upload, X } from "lucide-react";
+import { Menu, Moon, PanelLeftClose, Search, Sun, Upload, X } from "lucide-react";
 import { useLibrary } from "./library-provider";
 import { IconButton } from "./icon-button";
 
@@ -12,6 +12,10 @@ export function Topbar() {
     theme,
     toggleTheme,
     uploadInputRef,
+    storageState,
+    setCommandMenuOpen,
+    sidebarCollapsed,
+    setSidebarCollapsed,
   } = useLibrary();
 
   return (
@@ -22,6 +26,13 @@ export function Topbar() {
         onClick={() => setMobileMenuOpen(true)}
       >
         <Menu size={19} />
+      </IconButton>
+      <IconButton
+        className="sidebar-toggle"
+        label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+      >
+        <PanelLeftClose size={18} />
       </IconButton>
 
       <label className="global-search">
@@ -42,14 +53,30 @@ export function Topbar() {
             <X size={15} />
           </button>
         ) : (
-          <kbd>⌘ K</kbd>
+          <button
+            className="search-shortcut"
+            onClick={(event) => {
+              event.preventDefault();
+              setCommandMenuOpen(true);
+            }}
+            aria-label="打开快捷命令"
+            type="button"
+          >
+            <kbd>⌘ K</kbd>
+          </button>
         )}
       </label>
 
       <div className="topbar-meta">
-        <span className="sync-label">
+        <span className={`sync-label state-${storageState}`}>
           <i />
-          本地自动保存
+          {storageState === "loading"
+            ? "读取数据"
+            : storageState === "saving"
+              ? "正在保存"
+              : storageState === "error"
+                ? "保存异常"
+                : "本地已保存"}
         </span>
         <IconButton
           label={theme === "light" ? "切换到深色模式" : "切换到浅色模式"}

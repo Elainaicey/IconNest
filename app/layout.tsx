@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://iconnest.local";
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://iconnest.ushio.cc";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -20,8 +21,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og.png",
-        width: 1731,
-        height: 900,
+        width: 1792,
+        height: 1024,
         alt: "IconNest 图标管理工作台",
       },
     ],

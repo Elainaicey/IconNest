@@ -16,8 +16,11 @@ import {
   Square,
   Trash2,
   Upload,
+  ShieldCheck,
+  Database,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { AmbientParticles } from "@/components/ui/ambient-particles";
 import { routeTitle, workspacePaths } from "@/lib/icons/paths";
 import type { IconItem, WorkspaceRoute } from "@/lib/icons/types";
 import { IconGrid } from "./icon-grid";
@@ -35,6 +38,7 @@ const ROUTE_DESCRIPTIONS: Record<
 };
 
 export function LibraryView({ route }: { route: WorkspaceRoute }) {
+  const [dragging, setDragging] = useState(false);
   const {
     icons,
     collections,
@@ -54,6 +58,8 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
     bulkTrash,
     exportSelected,
     pasteSvg,
+    importSvgFiles,
+    storageDriver,
   } = useLibrary();
 
   const activeIcons = useMemo(
@@ -102,47 +108,51 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
     <div className="workspace-page">
       {route.kind === "library" && !query && (
         <section className="overview-band" aria-label="工作区概览">
-          <div className="overview-copy">
-            <span className="section-kicker">PERSONAL ICON VAULT</span>
-            <h1>让每一枚图标都有清晰归处</h1>
-            <p>集中管理来源、集合与交付格式，数据保留在当前设备。</p>
+          <AmbientParticles />
+          <div className="overview-main">
+            <div className="overview-copy">
+              <span className="hero-pill"><Sparkles size={13} /> PERSONAL ICON VAULT</span>
+              <h1>让每一枚图标都有清晰归处</h1>
+              <p>收集、整理、预览与交付，在一个轻盈而可靠的本地工作区完成。</p>
+              <div className="hero-trust-row">
+                <span><Database size={14} /> {storageDriver === "indexeddb" ? "IndexedDB 持久保存" : "浏览器本地保存"}</span>
+                <span><ShieldCheck size={14} /> SVG 安全净化</span>
+              </div>
+            </div>
+            <dl className="overview-stats">
+              <div><dt>全部图标</dt><dd>{stats.total}</dd><small>随时可用</small></div>
+              <div><dt>图标来源</dt><dd>{stats.sources}</dd><small>统一管理</small></div>
+              <div><dt>已收藏</dt><dd>{stats.favorites}</dd><small>灵感精选</small></div>
+            </dl>
+            <div className="overview-actions">
+              <Link className="button button-solid" href={workspacePaths.explore}>
+                <Sparkles size={15} /> 探索图标
+              </Link>
+              <button className="button button-soft" onClick={() => uploadInputRef.current?.click()} type="button">
+                <Upload size={15} /> 批量上传
+              </button>
+              <button className="button button-ghost" onClick={pasteSvg} type="button">
+                <ClipboardPaste size={15} /> 粘贴 SVG
+              </button>
+            </div>
           </div>
-          <dl className="overview-stats">
-            <div>
-              <dt>图标</dt>
-              <dd>{stats.total}</dd>
-            </div>
-            <div>
-              <dt>来源</dt>
-              <dd>{stats.sources}</dd>
-            </div>
-            <div>
-              <dt>收藏</dt>
-              <dd>{stats.favorites}</dd>
-            </div>
-          </dl>
-          <div className="overview-actions">
-            <Link className="button button-solid" href={workspacePaths.explore}>
-              <Sparkles size={15} />
-              探索图标
-            </Link>
-            <button
-              className="button button-soft"
-              onClick={() => uploadInputRef.current?.click()}
-              type="button"
-            >
-              <Upload size={15} />
-              上传 SVG
-            </button>
-            <button
-              className="button button-ghost"
-              onClick={pasteSvg}
-              type="button"
-            >
-              <ClipboardPaste size={15} />
-              从剪贴板粘贴
-            </button>
-          </div>
+          <button
+            className={`hero-dropzone ${dragging ? "dragging" : ""}`}
+            onClick={() => uploadInputRef.current?.click()}
+            onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              void importSvgFiles(Array.from(event.dataTransfer.files));
+            }}
+            type="button"
+          >
+            <span><Upload size={21} /></span>
+            <strong>拖入你的 SVG</strong>
+            <small>单次至多 50 枚 · 每枚 512 KB</small>
+          </button>
         </section>
       )}
 
@@ -257,7 +267,7 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
                 </label>
                 <button onClick={exportSelected} type="button">
                   <Download size={15} />
-                  导出
+                  导出 ZIP
                 </button>
                 <button className="danger" onClick={bulkTrash} type="button">
                   <Trash2 size={15} />

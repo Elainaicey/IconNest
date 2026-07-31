@@ -15,6 +15,7 @@ import {
 } from "react";
 import { fetchIconSvg } from "@/lib/icons/api";
 import { DEFAULT_COLLECTIONS, SEED_LIBRARY } from "@/lib/icons/catalog";
+import { downloadIconPng, exportIconsZip } from "@/lib/icons/export";
 import { workspacePaths } from "@/lib/icons/paths";
 import {
   loadTheme,
@@ -22,6 +23,7 @@ import {
   saveTheme,
   saveWorkspace,
   validateSnapshot,
+  workspaceSize,
 } from "@/lib/icons/storage";
 import {
   createReactIconSnippet,
@@ -32,6 +34,8 @@ import {
 import type {
   IconItem,
   SortMode,
+  StorageDriver,
+  StorageState,
   ThemeMode,
   ViewMode,
 } from "@/lib/icons/types";
@@ -40,6 +44,10 @@ type LibraryContextValue = {
   icons: IconItem[];
   collections: string[];
   hydrated: boolean;
+  storageDriver: StorageDriver;
+  storageState: StorageState;
+  workspaceBytes: number;
+  lastSavedAt: number | null;
   theme: ThemeMode;
   query: string;
   viewMode: ViewMode;
@@ -50,6 +58,9 @@ type LibraryContextValue = {
   toast: string;
   mobileMenuOpen: boolean;
   createCollectionOpen: boolean;
+  collectionManagerOpen: boolean;
+  commandMenuOpen: boolean;
+  sidebarCollapsed: boolean;
   uploadInputRef: RefObject<HTMLInputElement | null>;
   backupInputRef: RefObject<HTMLInputElement | null>;
   stats: {
@@ -65,6 +76,9 @@ type LibraryContextValue = {
   setFilterSource: (source: string) => void;
   setMobileMenuOpen: (open: boolean) => void;
   setCreateCollectionOpen: (open: boolean) => void;
+  setCollectionManagerOpen: (open: boolean) => void;
+  setCommandMenuOpen: (open: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setSelectedIconId: (id: string | null) => void;
   notify: (message: string) => void;
   updateIcon: (id: string, patch: Partial<IconItem>) => void;
@@ -80,7 +94,10 @@ type LibraryContextValue = {
   restoreIcon: (id: string) => void;
   deleteIcon: (id: string) => void;
   createCollection: (name: string) => boolean;
+  renameCollection: (currentName: string, nextName: string) => boolean;
+  deleteCollection: (name: string) => boolean;
   pasteSvg: () => Promise<void>;
+  importSvgFiles: (files: File[]) => Promise<void>;
   handleUpload: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleBackupImport: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   exportWorkspace: () => void;
@@ -90,6 +107,7 @@ type LibraryContextValue = {
   copyHtml: (icon: IconItem) => Promise<void>;
   copyCss: (icon: IconItem) => Promise<void>;
   downloadSvg: (icon: IconItem) => Promise<void>;
+  downloadPng: (icon: IconItem, size?: number) => Promise<void>;
   toggleTheme: () => void;
 };
 
@@ -102,6 +120,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [collections, setCollections] =
     useState<string[]>(DEFAULT_COLLECTIONS);
   const [hydrated, setHydrated] = useState(false);
+  const [storageDriver, setStorageDriver] =
+    useState<StorageDriver>("indexeddb");
+  const [storageState, setStorageState] =
+    useState<StorageState>("loading");
+  const [workspaceBytes, setWorkspaceBytes] = useState(0);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -112,40 +136,67 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
+  const [collectionManagerOpen, setCollectionManagerOpen] = useState(false);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
+    let active = true;
+    void (async () => {
       try {
-        const workspace = loadWorkspace();
-        setIcons(workspace.icons);
-        setCollections(workspace.collections);
+        const loaded = await loadWorkspace();
+        if (!active) return;
+        setIcons(loaded.snapshot.icons);
+        setCollections(loaded.snapshot.collections);
+        setStorageDriver(loaded.driver);
+        setWorkspaceBytes(workspaceSize(loaded.snapshot));
+        setLastSavedAt(Date.now());
+        setStorageState("saved");
+        if (loaded.migrated) setToast("已将旧版数据安全迁移到浏览器数据库");
         setTheme(loadTheme());
+        setSidebarCollapsed(localStorage.getItem("iconnest.sidebar.v1") === "collapsed");
       } catch {
+        if (!active) return;
         setIcons(SEED_LIBRARY);
         setCollections(DEFAULT_COLLECTIONS);
+        setStorageState("error");
       } finally {
-        setHydrated(true);
+        if (active) setHydrated(true);
       }
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    let timeout: number | undefined;
-    try {
-      saveWorkspace({ version: 2, icons, collections });
-    } catch {
-      timeout = window.setTimeout(
-        () => setToast("本地存储空间不足，请先导出备份"),
-        0,
-      );
-    }
+    const snapshot = { version: 3 as const, icons, collections };
+    const timeout = window.setTimeout(() => {
+      setStorageState("saving");
+      void saveWorkspace(snapshot, storageDriver)
+        .then(() => {
+          setWorkspaceBytes(workspaceSize(snapshot));
+          setLastSavedAt(Date.now());
+          setStorageState("saved");
+        })
+        .catch(() => {
+          setStorageState("error");
+          setToast("本地保存失败，请立即导出备份");
+        });
+    }, 320);
     return () => window.clearTimeout(timeout);
-  }, [collections, hydrated, icons]);
+  }, [collections, hydrated, icons, storageDriver]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem(
+      "iconnest.sidebar.v1",
+      sidebarCollapsed ? "collapsed" : "expanded",
+    );
+  }, [hydrated, sidebarCollapsed]);
 
   useEffect(() => {
     let timeout: number | undefined;
@@ -181,9 +232,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const handleKeydown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        searchInputRef.current =
-          document.querySelector<HTMLInputElement>("[data-global-search]");
-        searchInputRef.current?.focus();
+        setCommandMenuOpen((current) => !current);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setSidebarCollapsed((current) => !current);
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "i") {
         event.preventDefault();
@@ -193,6 +246,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setSelectedIconId(null);
         setMobileMenuOpen(false);
         setCreateCollectionOpen(false);
+        setCollectionManagerOpen(false);
+        setCommandMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeydown);
@@ -322,6 +377,53 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [collections, notify, router],
   );
 
+  const renameCollection = useCallback(
+    (currentName: string, nextName: string) => {
+      const normalized = nextName.trim();
+      if (!normalized || normalized === currentName) return false;
+      if (collections.includes(normalized)) {
+        notify("这个集合已经存在");
+        return false;
+      }
+      setCollections((current) =>
+        current.map((item) => (item === currentName ? normalized : item)),
+      );
+      setIcons((current) =>
+        current.map((icon) =>
+          icon.collection === currentName
+            ? { ...icon, collection: normalized }
+            : icon,
+        ),
+      );
+      if (pathname === workspacePaths.collection(currentName)) {
+        router.replace(workspacePaths.collection(normalized));
+      }
+      notify("集合名称已更新");
+      return true;
+    },
+    [collections, notify, pathname, router],
+  );
+
+  const deleteCollection = useCallback(
+    (name: string) => {
+      if (!collections.includes(name)) return false;
+      const remaining = collections.filter((item) => item !== name);
+      const fallback = remaining[0] ?? "未分类";
+      setCollections(remaining.length ? remaining : [fallback]);
+      setIcons((current) =>
+        current.map((icon) =>
+          icon.collection === name ? { ...icon, collection: fallback } : icon,
+        ),
+      );
+      if (pathname === workspacePaths.collection(name)) {
+        router.replace(workspacePaths.collection(fallback));
+      }
+      notify(`集合已移除，图标已转移到「${fallback}」`);
+      return true;
+    },
+    [collections, notify, pathname, router],
+  );
+
   const importCustomSvg = useCallback(
     (svg: string, name: string) => {
       if (icons.some((icon) => icon.svg === svg && !icon.trashed)) {
@@ -346,23 +448,65 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [addIcon, collections, icons, notify, router],
   );
 
-  const handleUpload = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file) return;
-      if (file.size > 256 * 1024) {
-        notify("SVG 文件不能超过 256 KB");
+  const importSvgFiles = useCallback(
+    async (files: File[]) => {
+      const candidates = files.slice(0, 50);
+      if (files.length > 50) notify("单次最多导入 50 个 SVG 文件");
+      const existing = new Set(
+        icons.filter((icon) => !icon.trashed && icon.svg).map((icon) => icon.svg),
+      );
+      const imported: IconItem[] = [];
+      let skipped = 0;
+
+      for (const file of candidates) {
+        if (!file.name.toLowerCase().endsWith(".svg") || file.size > 512 * 1024) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          const svg = sanitizeSvg(await file.text());
+          if (existing.has(svg)) {
+            skipped += 1;
+            continue;
+          }
+          existing.add(svg);
+          imported.push({
+            id: `upload-${crypto.randomUUID()}`,
+            name: file.name.replace(/\.svg$/i, "") || "Untitled",
+            svg,
+            source: "本地上传",
+            tags: ["custom"],
+            collection: collections[0] ?? "未分类",
+            favorite: false,
+            addedAt: Date.now() + imported.length,
+          });
+        } catch {
+          skipped += 1;
+        }
+      }
+
+      if (!imported.length) {
+        notify("没有可导入的 SVG；请检查格式、大小或重复项");
         return;
       }
-      try {
-        const svg = sanitizeSvg(await file.text());
-        importCustomSvg(svg, file.name.replace(/\.svg$/i, "") || "Untitled");
-      } catch (error) {
-        notify(error instanceof Error ? error.message : "SVG 导入失败");
-      }
+      setIcons((current) => [...imported.reverse(), ...current]);
+      router.push(workspacePaths.library);
+      setSelectedIconId(imported.at(-1)?.id ?? null);
+      notify(
+        `已导入 ${imported.length} 枚图标${skipped ? `，跳过 ${skipped} 个文件` : ""}`,
+      );
     },
-    [importCustomSvg, notify],
+    [collections, icons, notify, router],
+  );
+
+  const handleUpload = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (!files.length) return;
+      await importSvgFiles(files);
+    },
+    [importSvgFiles],
   );
 
   const pasteSvg = useCallback(async () => {
@@ -377,7 +521,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const exportWorkspace = useCallback(() => {
     const payload = {
       app: "IconNest",
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       icons,
       collections,
@@ -394,25 +538,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const exportSelected = useCallback(() => {
     const selected = new Set(selectedIds);
     const exportedIcons = icons.filter((icon) => selected.has(icon.id));
-    downloadBlob(
-      new Blob(
-        [
-          JSON.stringify(
-            {
-              app: "IconNest",
-              version: 2,
-              exportedAt: new Date().toISOString(),
-              icons: exportedIcons,
-            },
-            null,
-            2,
-          ),
-        ],
-        { type: "application/json" },
-      ),
-      `iconnest-selection-${new Date().toISOString().slice(0, 10)}.json`,
-    );
-    notify(`已导出 ${exportedIcons.length} 枚图标`);
+    void exportIconsZip(exportedIcons)
+      .then(() => notify(`已打包导出 ${exportedIcons.length} 枚 SVG`))
+      .catch(() => notify("ZIP 导出失败，请稍后重试"));
   }, [icons, notify, selectedIds]);
 
   const handleBackupImport = useCallback(
@@ -517,11 +645,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [notify],
   );
 
+  const downloadPng = useCallback(
+    async (icon: IconItem, size = 512) => {
+      try {
+        await downloadIconPng(icon, size);
+        notify(`${size}px PNG 已开始下载`);
+      } catch {
+        notify("PNG 生成失败，请稍后重试");
+      }
+    },
+    [notify],
+  );
+
   const value = useMemo<LibraryContextValue>(
     () => ({
       icons,
       collections,
       hydrated,
+      storageDriver,
+      storageState,
+      workspaceBytes,
+      lastSavedAt,
       theme,
       query,
       viewMode,
@@ -532,6 +676,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       toast,
       mobileMenuOpen,
       createCollectionOpen,
+      collectionManagerOpen,
+      commandMenuOpen,
+      sidebarCollapsed,
       uploadInputRef,
       backupInputRef,
       stats,
@@ -541,6 +688,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setFilterSource,
       setMobileMenuOpen,
       setCreateCollectionOpen,
+      setCollectionManagerOpen,
+      setCommandMenuOpen,
+      setSidebarCollapsed,
       setSelectedIconId,
       notify,
       updateIcon,
@@ -563,7 +713,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         notify("图标已永久删除");
       },
       createCollection,
+      renameCollection,
+      deleteCollection,
       pasteSvg,
+      importSvgFiles,
       handleUpload,
       handleBackupImport,
       exportWorkspace,
@@ -573,6 +726,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       copyHtml,
       copyCss,
       downloadSvg,
+      downloadPng,
       toggleTheme: () =>
         setTheme((current) => (current === "light" ? "dark" : "light")),
     }),
@@ -588,23 +742,33 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       copySvg,
       createCollection,
       createCollectionOpen,
+      collectionManagerOpen,
+      commandMenuOpen,
+      deleteCollection,
       downloadSvg,
+      downloadPng,
       exportSelected,
       exportWorkspace,
       filterSource,
       handleBackupImport,
       handleUpload,
       hydrated,
+      importSvgFiles,
       icons,
+      lastSavedAt,
       mobileMenuOpen,
       notify,
       openIcon,
       pasteSvg,
       query,
+      renameCollection,
       selectedIcon,
       selectedIds,
+      sidebarCollapsed,
       sortMode,
       stats,
+      storageDriver,
+      storageState,
       theme,
       toggleFavorite,
       toggleSelectAll,
@@ -612,6 +776,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       toast,
       updateIcon,
       viewMode,
+      workspaceBytes,
     ],
   );
 

@@ -7,6 +7,7 @@ import {
   ArrowDownToLine,
   Clock3,
   FolderPlus,
+  FolderCog,
   Heart,
   Import,
   Layers3,
@@ -63,6 +64,10 @@ export function Sidebar() {
     exportWorkspace,
     stats,
     hydrated,
+    storageDriver,
+    storageState,
+    workspaceBytes,
+    setCollectionManagerOpen,
   } = useLibrary();
 
   return (
@@ -128,6 +133,14 @@ export function Sidebar() {
           >
             <FolderPlus size={16} />
           </button>
+          <button
+            onClick={() => setCollectionManagerOpen(true)}
+            aria-label="管理集合"
+            data-tooltip="管理集合"
+            type="button"
+          >
+            <FolderCog size={16} />
+          </button>
         </div>
         {collections.map((collection, index) => {
           const href = workspacePaths.collection(collection);
@@ -157,9 +170,15 @@ export function Sidebar() {
           </span>
           <span>
             <strong>本地工作区</strong>
-            <small>{hydrated ? "所有更改已保存" : "正在读取数据"}</small>
+            <small>
+              {!hydrated
+                ? "正在读取数据"
+                : storageState === "error"
+                  ? "保存异常，请导出备份"
+                  : `${storageDriver === "indexeddb" ? "浏览器数据库" : "兼容存储"} · ${formatBytes(workspaceBytes)}`}
+            </small>
           </span>
-          <i className={hydrated ? "ready" : ""} />
+          <i className={hydrated && storageState !== "error" ? "ready" : ""} />
         </div>
         <div className="storage-actions">
           <button onClick={exportWorkspace} type="button">
@@ -174,4 +193,10 @@ export function Sidebar() {
       </div>
     </aside>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

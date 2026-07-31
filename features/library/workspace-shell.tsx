@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { CollectionDialog } from "./collection-dialog";
+import { CollectionManagerDialog } from "./collection-manager-dialog";
+import { CommandMenu } from "./command-menu";
 import { DetailDrawer } from "./detail-drawer";
 import { LibraryProvider, useLibrary } from "./library-provider";
 import { Sidebar } from "./sidebar";
@@ -25,10 +27,11 @@ function WorkspaceFrame({ children }: { children: ReactNode }) {
     uploadInputRef,
     backupInputRef,
     toast,
+    sidebarCollapsed,
   } = useLibrary();
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <button
         className={`mobile-overlay ${mobileMenuOpen ? "visible" : ""}`}
         onClick={() => setMobileMenuOpen(false)}
@@ -43,11 +46,14 @@ function WorkspaceFrame({ children }: { children: ReactNode }) {
       </div>
       <DetailDrawer />
       <CollectionDialog />
+      <CollectionManagerDialog />
+      <CommandMenu />
       <input
         ref={uploadInputRef}
         className="visually-hidden"
         type="file"
         accept=".svg,image/svg+xml"
+        multiple
         onChange={handleUpload}
       />
       <input

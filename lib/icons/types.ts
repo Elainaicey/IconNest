@@ -9,6 +9,8 @@ export type WorkspaceRoute =
 export type ViewMode = "grid" | "list";
 export type SortMode = "newest" | "name" | "source";
 export type ThemeMode = "light" | "dark";
+export type StorageDriver = "indexeddb" | "localStorage";
+export type StorageState = "loading" | "saving" | "saved" | "error";
 
 export type IconItem = {
   id: string;
@@ -25,7 +27,7 @@ export type IconItem = {
 };
 
 export type WorkspaceSnapshot = {
-  version: 2;
+  version: 3;
   icons: IconItem[];
   collections: string[];
 };

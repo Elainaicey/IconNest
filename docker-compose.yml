@@ -1,12 +1,44 @@
+name: iconnest
+
 services:
   iconnest:
     image: ghcr.io/elainaicey/iconnest:latest
     pull_policy: always
     container_name: iconnest
     restart: unless-stopped
+    init: true
     ports:
-      - "${ICONNEST_PORT:-3000}:3000"
+      # Loopback-only by default: expose it through Caddy instead of the public internet.
+      - "${ICONNEST_BIND:-127.0.0.1}:${ICONNEST_PORT:-3001}:3000"
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=${ICONNEST_NODE_MEMORY_MB:-256}"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: ${ICONNEST_MEMORY_LIMIT:-384m}
+    cpus: ${ICONNEST_CPU_LIMIT:-1.0}
+    stop_grace_period: 20s
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: ${ICONNEST_LOG_SIZE:-10m}
+        max-file: "3"
+
+    # No server data volume is required. Private workspace data lives in the
+    # visitor's browser IndexedDB and can be backed up from the application.

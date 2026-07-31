@@ -11,17 +11,19 @@ IconNest 是一个现代化、本地优先的图标综合管理工作台。它�
 
 ## 0.2.0 功能
 
-- **私人图标库**：上传并安全清理 SVG，数据保存在浏览器本地
+- **私人图标库**：拖拽或批量上传并安全清理 SVG，数据保存在浏览器 IndexedDB
 - **多来源探索**：通过 Iconify API 搜索 Lucide、Tabler、Phosphor、Remix Icon 与 Solar
-- **集合与标签**：自定义集合、修改图标名称、添加或移除标签
+- **集合与标签**：新建、重命名或安全删除集合，编辑图标名称与标签
 - **收藏与最近浏览**：快速回到常用或刚刚查看过的图标
-- **批量管理**：多选、批量收藏、移动集合、导出与删除
+- **批量管理**：多选、批量收藏、移动集合、导出 SVG ZIP 资产包与删除
 - **筛选与排序**：按来源筛选，并按时间、名称或来源排序
-- **多种交付方式**：复制 SVG、HTML、React 组件或 CSS Mask，下载 SVG
+- **多种交付方式**：复制 SVG、HTML、React 组件或 CSS Mask，下载 SVG / PNG
 - **灵活预览**：实时调色、缩放、旋转与水平翻转
 - **剪贴板导入**：直接粘贴 SVG，并自动检测重复内容
 - **备份与恢复**：将完整图标库导出为 JSON，并在其他设备恢复
 - **回收站**：软删除、恢复或永久移除图标
+- **快捷命令**：`⌘/Ctrl K` 搜索图标和执行常用操作，`⌘/Ctrl B` 收起侧栏
+- **可靠持久化**：旧版 localStorage 自动迁移、保存状态可见、JSON 备份可移植
 - **主题与响应式布局**：支持浅色 / 深色模式、桌面端与移动端
 - **真实页面路由**：图标库、探索、收藏、最近浏览、回收站和集合均有独立 URL
 - **同源服务 API**：Iconify 搜索和 SVG 获取由服务端校验、代理并缓存
@@ -32,12 +34,13 @@ IconNest 是一个现代化、本地优先的图标综合管理工作台。它�
 
 - React 19 + TypeScript
 - Next.js App Router
-- vinext + Vite
+- Next.js 16 App Router（standalone 生产输出）
 - Tailwind CSS 4
 - Radix Colors
 - Lucide React
+- fflate（浏览器端 ZIP 打包）
 - Iconify Search / SVG API
-- Cloudflare Worker 兼容构建
+- Next.js standalone 精简生产运行时
 
 ## 快速开始
 
@@ -59,38 +62,51 @@ npm run dev      # 启动开发服务器
 npm run build    # 生成生产构建
 npm run start    # 预览生产构建
 npm run lint     # 代码检查
+npm run typecheck # TypeScript 类型检查
 npm test         # 构建并验证服务端输出
 ```
 
-## Docker Compose 一键部署
+## Docker Compose 单容器部署
 
-默认配置直接从 GitHub Container Registry 拉取预构建镜像，不需要在 VPS 上编译源码。
+生产配置只运行 **1 个 IconNest 容器**。推荐把仓库浅克隆到 VPS：这样 `/opt/iconnest` 会保留 Compose、环境示例、Caddy 示例、部署文档、许可证和源码，但 Docker 仍直接拉取 GHCR 预构建镜像，不会在 VPS 编译。
 
 ```bash
-mkdir -p iconnest && cd iconnest
-curl -fsSLO https://raw.githubusercontent.com/Elainaicey/IconNest/main/docker-compose.yml
-docker compose pull
-docker compose up -d
+sudo git clone --depth 1 https://github.com/Elainaicey/IconNest.git /opt/iconnest
+cd /opt/iconnest
+sudo cp .env.example .env
+sudo docker compose pull
+sudo docker compose up -d
+sudo docker compose ps
 ```
 
-默认访问地址为 `http://服务器IP:3000`。
+默认只监听 `127.0.0.1:3001`，避免与已经使用 3000 端口的项目冲突，也避免绕过 HTTPS 直接暴露应用。可在 `.env` 中修改端口、内存与 CPU 上限。
 
-如需修改端口：
+### Caddy 反向代理
+
+仓库的 [`deploy/Caddyfile.example`](./deploy/Caddyfile.example) 已按 `iconnest.ushio.cc` 和 3001 端口准备好。把站点块合并到 `/etc/caddy/Caddyfile` 后执行：
+
+```caddyfile
+iconnest.ushio.cc {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3001
+}
+```
 
 ```bash
-ICONNEST_PORT=8080 docker compose up -d
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
 ```
 
 更新到最新镜像：
 
 ```bash
-docker compose pull
-docker compose up -d
+cd /opt/iconnest
+sudo git pull --ff-only
+sudo docker compose pull
+sudo docker compose up -d --remove-orphans
 ```
 
-默认镜像：`ghcr.io/elainaicey/iconnest:latest`
-
-生产环境建议在容器前配置 Caddy、Nginx 或 Traefik，并启用 HTTPS。镜像以非 root 用户运行，包含健康检查，并通过 GitHub Actions 自动构建 `linux/amd64` 与 `linux/arm64` 版本。
+默认镜像：`ghcr.io/elainaicey/iconnest:latest`。镜像以非 root 用户运行；生产 Compose 进一步启用只读文件系统、临时 `/tmp`、Linux 能力移除、资源上限、健康检查、日志轮换和优雅停止，并通过 GitHub Actions 构建 `linux/amd64` 与 `linux/arm64` 镜像。
 
 ### 从源码构建
 
@@ -107,12 +123,13 @@ docker compose \
 
 ## 数据与隐私
 
-IconNest 使用浏览器 `localStorage` 保存图标、集合和偏好：
+IconNest 使用浏览器 **IndexedDB** 保存图标、集合、收藏与标签；主题等小型偏好保存在 localStorage。旧版数据首次打开时会自动迁移：
 
 - 数据不会自动上传到 IconNest 服务器
+- 容器是无状态的，因此**不需要 Docker 数据卷**；更新或重建容器不会清除浏览器数据
 - 删除浏览器站点数据会同时删除本地图标库
-- 更换设备或浏览器前，请先使用侧边栏的“导出”功能备份
-- SVG 上传大小上限为 256 KB；脚本、内嵌页面与危险事件属性会被移除
+- 更换域名、设备或浏览器前，请先使用侧边栏的“导出备份”生成 JSON
+- SVG 单个大小上限为 512 KB、单次最多 50 个；脚本、内嵌页面与危险事件属性会被移除
 - 探索页通过 IconNest 同源 API 请求 Iconify 公共服务，请遵守各图标库自己的许可证
 
 ## 页面与 API
@@ -149,18 +166,19 @@ IconNest/
 │  ├─ layout.tsx        # 全局元数据
 │  └─ page.tsx          # 根路径重定向
 ├─ features/library/    # 工作区状态、视图和可复用组件
+├─ components/ui/       # 环境粒子等通用视觉组件
 ├─ lib/icons/           # 类型、目录、API 客户端、存储与 SVG 工具
+├─ deploy/              # Caddy 示例与生产运维指南
+├─ CHANGELOG.md         # 版本变更记录
 ├─ public/
 │  └─ og.png            # 社交分享封面
-├─ tests/
-│  └─ rendered-html.test.mjs
-├─ worker/              # Cloudflare Worker 入口
-├─ .openai/             # Sites 部署声明
+├─ tests/               # 页面、API、存储与部署契约测试
 ├─ .github/workflows/   # 自动构建并发布 GHCR 镜像
 ├─ Dockerfile
 ├─ docker-compose.yml
 ├─ docker-compose.build.yml
-├─ vite.config.ts
+├─ .env.example
+├─ next.config.ts
 └─ package.json
 ```
 
@@ -170,15 +188,18 @@ IconNest/
 
 - 独立页面路由和同源 Iconify API
 - 模块化前端架构与版本化本地存储
-- 基于 Radix 色阶的亮色 / 深色设计系统
+- IndexedDB 数据层、自动迁移、ZIP/PNG 导出与批量导入
+- 命令面板、集合管理和可折叠侧栏
+- 基于 Radix 色阶的亮色 / 深色设计系统、亚克力表面与低干扰粒子反馈
+- 加固的单容器 Compose 与 Caddy 生产部署方案
 - 页面、API 和服务端渲染自动化测试
 
 ### 0.3
 
 - 可选 SQLite / PostgreSQL 服务端存储与多设备同步
 - 账号系统和可迁移的远程工作区
-- SVG 批量上传与高级元数据编辑
-- PNG / WebP 多尺寸导出
+- PNG 多尺寸与 WebP 导出
+- 高级元数据批量编辑与智能去重
 
 ### 0.4
 
