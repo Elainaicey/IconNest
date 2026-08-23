@@ -17,7 +17,10 @@ IconNest 是一个现代化、本地优先的图标管理工作台。你可以�
 - 复制 SVG、HTML、React 组件和 CSS Mask
 - 实时调整预览颜色、尺寸、旋转和水平翻转
 - `⌘/Ctrl K` 快捷命令与 `⌘/Ctrl B` 可折叠侧栏
-- 浅色、深色、响应式布局和减少动态效果支持
+- 白色主调的液态玻璃界面、动态光场与轻量互动粒子
+- 指针聚光、低幅度 3D 卡片反馈与复制完成状态
+- 键盘可用的命令面板、焦点圈禁式弹窗与移动端详情面板
+- 浅色、深色、响应式布局和减少动态/透明效果支持
 - IndexedDB 自动保存与可见的保存状态
 - 单容器 Docker Compose 部署
 
@@ -25,8 +28,9 @@ IconNest 是一个现代化、本地优先的图标管理工作台。你可以�
 
 - Next.js 16 App Router
 - React 19 + TypeScript
-- Tailwind CSS 4
-- Radix Colors
+- 模块化原生 CSS 设计系统
+- Radix Colors + Radix Dialog
+- Geist Sans
 - Lucide React
 - fflate
 - Iconify API
@@ -128,7 +132,8 @@ IconNest 的图标、集合、收藏和标签保存在当前浏览器的 Indexed
 
 ```text
 IconNest/
-├─ app/                  # 页面路由、API、全局样式与元数据
+├─ app/                  # 页面路由、API 与元数据
+│  └─ styles/            # 令牌、基础、外壳、工作区与浮层样式
 ├─ components/ui/        # 通用视觉组件
 ├─ features/library/     # 图标工作区功能、状态与交互组件
 ├─ lib/icons/            # 图标类型、存储、导出、API 与 SVG 工具

@@ -1,11 +1,11 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { iconSvgUrl } from "@/lib/icons/api";
 import { svgDataUrl } from "@/lib/icons/svg";
 import type { IconItem } from "@/lib/icons/types";
 
-export function IconArtwork({
+export const IconArtwork = memo(function IconArtwork({
   item,
   size = 36,
   color = "currentColor",
@@ -44,4 +44,4 @@ export function IconArtwork({
   };
 
   return <span className="icon-artwork icon-artwork-mask" aria-hidden style={style} />;
-}
+});

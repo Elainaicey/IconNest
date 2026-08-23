@@ -11,6 +11,7 @@ import {
   Heart,
   List,
   PackageOpen,
+  RotateCcw,
   SlidersHorizontal,
   Sparkles,
   Square,
@@ -18,9 +19,9 @@ import {
   Upload,
   ShieldCheck,
   Database,
+  X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { AmbientParticles } from "@/components/ui/ambient-particles";
+import { useEffect, useMemo, useState } from "react";
 import { routeTitle, workspacePaths } from "@/lib/icons/paths";
 import type { IconItem, WorkspaceRoute } from "@/lib/icons/types";
 import { IconGrid } from "./icon-grid";
@@ -56,6 +57,9 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
     bulkFavorite,
     bulkMove,
     bulkTrash,
+    bulkRestore,
+    bulkDelete,
+    clearSelection,
     exportSelected,
     pasteSvg,
     importSvgFiles,
@@ -66,6 +70,12 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
     () => icons.filter((icon) => !icon.trashed),
     [icons],
   );
+  const routeKey =
+    route.kind === "collection" ? `${route.kind}:${route.collection}` : route.kind;
+
+  useEffect(() => {
+    clearSelection();
+  }, [clearSelection, filterSource, query, routeKey]);
 
   const visibleIcons = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -108,22 +118,21 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
     <div className="workspace-page">
       {route.kind === "library" && !query && (
         <section className="overview-band" aria-label="工作区概览">
-          <AmbientParticles />
+          <span className="overview-glow" aria-hidden="true" />
           <div className="overview-main">
             <div className="overview-copy">
-              <span className="hero-pill"><Sparkles size={13} /> PERSONAL ICON VAULT</span>
-              <h1>让每一枚图标都有清晰归处</h1>
-              <p>收集、整理、预览与交付，在一个轻盈而可靠的本地工作区完成。</p>
-              <div className="hero-trust-row">
-                <span><Database size={14} /> {storageDriver === "indexeddb" ? "IndexedDB 持久保存" : "浏览器本地保存"}</span>
-                <span><ShieldCheck size={14} /> SVG 安全净化</span>
-              </div>
+              <span className="hero-pill">
+                <Sparkles size={13} /> PERSONAL ICON VAULT
+              </span>
+              <h1>
+                让图标资产井然有序
+                <br />
+                <span>随时交付。</span>
+              </h1>
+              <p>
+                把收藏、整理、预览和导出收进同一个轻盈工作区，专注设计本身。
+              </p>
             </div>
-            <dl className="overview-stats">
-              <div><dt>全部图标</dt><dd>{stats.total}</dd><small>随时可用</small></div>
-              <div><dt>图标来源</dt><dd>{stats.sources}</dd><small>统一管理</small></div>
-              <div><dt>已收藏</dt><dd>{stats.favorites}</dd><small>灵感精选</small></div>
-            </dl>
             <div className="overview-actions">
               <Link className="button button-solid" href={workspacePaths.explore}>
                 <Sparkles size={15} /> 探索图标
@@ -135,7 +144,38 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
                 <ClipboardPaste size={15} /> 粘贴 SVG
               </button>
             </div>
+            <div className="hero-trust-row">
+              <span>
+                <Database size={14} />
+                {storageDriver === "indexeddb"
+                  ? "IndexedDB 持久保存"
+                  : "浏览器本地保存"}
+              </span>
+              <span>
+                <ShieldCheck size={14} /> SVG 安全净化
+              </span>
+            </div>
           </div>
+          <dl className="overview-stats">
+            <div>
+              <span aria-hidden="true">01</span>
+              <dt>全部图标</dt>
+              <dd>{stats.total}</dd>
+              <small>已归档资产</small>
+            </div>
+            <div>
+              <span aria-hidden="true">02</span>
+              <dt>图标来源</dt>
+              <dd>{stats.sources}</dd>
+              <small>统一入口</small>
+            </div>
+            <div>
+              <span aria-hidden="true">03</span>
+              <dt>灵感收藏</dt>
+              <dd>{stats.favorites}</dd>
+              <small>精选内容</small>
+            </div>
+          </dl>
           <button
             className={`hero-dropzone ${dragging ? "dragging" : ""}`}
             onClick={() => uploadInputRef.current?.click()}
@@ -149,9 +189,14 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
             }}
             type="button"
           >
-            <span><Upload size={21} /></span>
+            <span className="dropzone-visual" aria-hidden="true">
+              <i className="dropzone-tile tile-upload"><Upload size={20} /></i>
+              <i className="dropzone-tile tile-spark"><Sparkles size={14} /></i>
+              <i className="dropzone-tile tile-data"><Database size={14} /></i>
+            </span>
             <strong>拖入你的 SVG</strong>
-            <small>单次至多 50 枚 · 每枚 512 KB</small>
+            <small>或点击浏览文件 · 单次至多 50 枚</small>
+            <span className="dropzone-format">SVG · 512 KB MAX</span>
           </button>
         </section>
       )}
@@ -161,7 +206,11 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
           <span className="section-kicker">
             {route.kind === "trash" ? "RECOVERY" : "YOUR COLLECTION"}
           </span>
-          <h1>{routeTitle(route)}</h1>
+          {route.kind === "library" && !query ? (
+            <h2>{routeTitle(route)}</h2>
+          ) : (
+            <h1>{routeTitle(route)}</h1>
+          )}
           <p>
             {query ? `“${query}” 的搜索结果` : description}
             <span aria-hidden> · </span>
@@ -203,6 +252,7 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
               className={viewMode === "grid" ? "active" : ""}
               onClick={() => setViewMode("grid")}
               aria-label="网格视图"
+              aria-pressed={viewMode === "grid"}
               data-tooltip="网格视图"
               type="button"
             >
@@ -212,6 +262,7 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
               className={viewMode === "list" ? "active" : ""}
               onClick={() => setViewMode("list")}
               aria-label="列表视图"
+              aria-pressed={viewMode === "list"}
               data-tooltip="列表视图"
               type="button"
             >
@@ -223,7 +274,8 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
 
       {visibleIcons.length > 0 ? (
         <>
-          <div className={`bulk-bar ${selectedIds.length ? "active" : ""}`}>
+          {selectedIds.length > 0 && (
+          <div className="bulk-bar active" role="toolbar" aria-label="批量操作">
             <button
               className="bulk-select"
               onClick={() => toggleSelectAll(visibleIds)}
@@ -234,16 +286,31 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
               ) : (
                 <Square size={16} />
               )}
-              {selectedIds.length
-                ? `已选择 ${selectedIds.length} 枚`
-                : "批量选择"}
+              已选择 {selectedIds.length} 枚
             </button>
-            {selectedIds.length > 0 && (
+            <span className="toolbar-separator" />
+            {route.kind === "trash" ? (
               <>
-                <span className="toolbar-separator" />
+                <button onClick={bulkRestore} type="button">
+                  <RotateCcw size={15} /> 恢复
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => {
+                    if (window.confirm("永久删除所选图标？此操作无法撤销。")) {
+                      bulkDelete();
+                    }
+                  }}
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                  永久删除
+                </button>
+              </>
+            ) : (
+              <>
                 <button onClick={bulkFavorite} type="button">
-                  <Heart size={15} />
-                  收藏
+                  <Heart size={15} /> 收藏
                 </button>
                 <label>
                   <FolderInput size={15} />
@@ -255,27 +322,30 @@ export function LibraryView({ route }: { route: WorkspaceRoute }) {
                     }}
                     aria-label="批量移动到集合"
                   >
-                    <option value="" disabled>
-                      移动到…
-                    </option>
+                    <option value="" disabled>移动到…</option>
                     {collections.map((collection) => (
-                      <option key={collection} value={collection}>
-                        {collection}
-                      </option>
+                      <option key={collection} value={collection}>{collection}</option>
                     ))}
                   </select>
                 </label>
                 <button onClick={exportSelected} type="button">
-                  <Download size={15} />
-                  导出 ZIP
+                  <Download size={15} /> 导出 ZIP
                 </button>
                 <button className="danger" onClick={bulkTrash} type="button">
-                  <Trash2 size={15} />
-                  删除
+                  <Trash2 size={15} /> 移至回收站
                 </button>
               </>
             )}
+            <button
+              className="bulk-close"
+              onClick={clearSelection}
+              aria-label="退出批量选择"
+              type="button"
+            >
+              <X size={16} />
+            </button>
           </div>
+          )}
           <IconGrid icons={visibleIcons} mode={viewMode} />
         </>
       ) : (

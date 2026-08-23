@@ -79,7 +79,7 @@ test("redirects the root URL to the icon library", async () => {
 });
 
 for (const [path, title, content] of [
-  ["/library", "图标库", "让每一枚图标都有清晰归处"],
+  ["/library", "图标库", "让图标资产井然有序"],
   ["/explore", "探索图标", "Powered by Iconify"],
   ["/favorites", "我的收藏", "标记为收藏的图标"],
   ["/recent", "最近浏览", "最近打开过的图标"],

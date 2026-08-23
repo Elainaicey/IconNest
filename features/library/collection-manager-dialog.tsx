@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useMemo, useState } from "react";
 import { FolderCog, Pencil, Trash2, X } from "lucide-react";
 import { useLibrary } from "./library-provider";
 
@@ -15,26 +16,34 @@ export function CollectionManagerDialog() {
   } = useLibrary();
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
-
-  if (!collectionManagerOpen) return null;
+  const collectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const icon of icons) {
+      if (!icon.trashed) {
+        counts.set(icon.collection, (counts.get(icon.collection) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [icons]);
 
   return (
-    <div className="modal-layer" role="presentation" onMouseDown={() => setCollectionManagerOpen(false)}>
-      <section
-        className="dialog collection-manager acrylic-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="manage-collections-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
+    <DialogPrimitive.Root open={collectionManagerOpen} onOpenChange={setCollectionManagerOpen}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="modal-layer" />
+        <DialogPrimitive.Content className="dialog collection-manager acrylic-panel">
         <header>
           <span className="dialog-icon"><FolderCog size={19} /></span>
-          <div><h2 id="manage-collections-title">管理集合</h2><p>重命名或整理你的图标分组</p></div>
-          <button className="icon-button" onClick={() => setCollectionManagerOpen(false)} aria-label="关闭" type="button"><X size={17} /></button>
+          <div>
+            <DialogPrimitive.Title id="manage-collections-title">管理集合</DialogPrimitive.Title>
+            <DialogPrimitive.Description>重命名或整理你的图标分组</DialogPrimitive.Description>
+          </div>
+          <DialogPrimitive.Close asChild>
+            <button className="icon-button" aria-label="关闭" type="button"><X size={17} /></button>
+          </DialogPrimitive.Close>
         </header>
         <div className="collection-manager-list">
           {collections.map((collection) => {
-            const count = icons.filter((icon) => !icon.trashed && icon.collection === collection).length;
+            const count = collectionCounts.get(collection) ?? 0;
             return (
               <div className="collection-manager-row" key={collection}>
                 {editing === collection ? (
@@ -68,7 +77,8 @@ export function CollectionManagerDialog() {
             );
           })}
         </div>
-      </section>
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

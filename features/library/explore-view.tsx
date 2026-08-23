@@ -4,11 +4,16 @@ import {
   Check,
   ExternalLink,
   Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  resetInteractiveSurface,
+  trackInteractiveSurface,
+} from "@/components/ui/interactive-surface";
 import { searchIcons } from "@/lib/icons/api";
 import {
   getIconName,
@@ -27,7 +32,12 @@ export function ExploreView() {
   const [results, setResults] = useState(INITIAL_EXPLORE_RESULTS);
   const [total, setTotal] = useState(INITIAL_EXPLORE_RESULTS.length);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const requestRef = useRef<AbortController | null>(null);
+  const activeIconifyIds = useMemo(
+    () => new Set(icons.filter((icon) => !icon.trashed).map((icon) => icon.iconifyId)),
+    [icons],
+  );
 
   useEffect(() => () => requestRef.current?.abort(), []);
 
@@ -43,6 +53,7 @@ export function ExploreView() {
     const controller = new AbortController();
     requestRef.current = controller;
     setLoading(true);
+    setErrorMessage("");
     try {
       const response = await searchIcons({
         query: keyword,
@@ -54,7 +65,9 @@ export function ExploreView() {
       setTotal(response.total);
     } catch (error) {
       if (controller.signal.aborted) return;
-      notify(error instanceof Error ? error.message : "搜索失败");
+      const message = error instanceof Error ? error.message : "搜索失败";
+      setErrorMessage(message);
+      notify(message);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
@@ -88,45 +101,48 @@ export function ExploreView() {
 
   return (
     <div className="workspace-page explore-page">
-      <header className="page-header explore-header">
-        <div>
-          <span className="section-kicker">ICON DISCOVERY</span>
-          <h1>探索图标</h1>
-          <p>跨 5 个开源图标库统一搜索</p>
-        </div>
-        <a
-          className="service-badge"
-          href="https://iconify.design/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <ShieldCheck size={15} />
-          Powered by Iconify
-          <ExternalLink size={13} />
-        </a>
-      </header>
+      <section className="explore-hero" aria-labelledby="explore-title">
+        <span className="explore-hero-glow" aria-hidden="true" />
+        <header className="page-header explore-header">
+          <div>
+            <span className="section-kicker">ICON DISCOVERY</span>
+            <h1 id="explore-title">探索下一枚好图标</h1>
+            <p>跨 5 个优秀开源图标库统一检索，找到后直接收入你的工作区。</p>
+          </div>
+          <a
+            className="service-badge"
+            href="https://iconify.design/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ShieldCheck size={15} />
+            Powered by Iconify
+            <ExternalLink size={13} />
+          </a>
+        </header>
 
-      <form className="explore-search" onSubmit={runSearch}>
-        <Search size={19} />
-        <input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="搜索 arrow、camera、home…"
-          aria-label="搜索开源图标"
-        />
-        <button className="button button-solid" disabled={loading}>
-          {loading ? "搜索中…" : "搜索"}
-        </button>
-      </form>
+        <form className="explore-search" onSubmit={runSearch} role="search">
+          <span className="explore-search-icon"><Search size={20} /></span>
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="试试 arrow、camera、home…"
+            aria-label="搜索开源图标"
+          />
+          <span className="explore-search-hint">英文关键词效果更佳</span>
+          <button className="button button-solid" disabled={loading} type="submit">
+            {loading ? "搜索中…" : "开始搜索"}
+          </button>
+        </form>
+      </section>
 
-      <div className="source-tabs" role="tablist" aria-label="图标来源">
+      <div className="source-tabs" role="group" aria-label="按图标来源筛选">
         {SOURCE_DEFINITIONS.map((source) => (
           <button
             key={source.label}
             className={activePrefix === source.prefix ? "active" : ""}
             data-tone={source.tone}
-            role="tab"
-            aria-selected={activePrefix === source.prefix}
+            aria-pressed={activePrefix === source.prefix}
             onClick={() => {
               setActivePrefix(source.prefix);
               void runSearch(undefined, source.prefix);
@@ -145,7 +161,16 @@ export function ExploreView() {
         ))}
       </div>
 
-      <div className="results-header">
+      {errorMessage && (
+        <div className="explore-error" role="alert">
+          <span>{errorMessage}</span>
+          <button onClick={() => void runSearch()} type="button">
+            <RefreshCw size={14} /> 重试
+          </button>
+        </div>
+      )}
+
+      <div className="results-header" aria-live="polite">
         <span>
           {loading
             ? "正在搜索…"
@@ -160,9 +185,7 @@ export function ExploreView() {
               <div className="explore-card skeleton" key={index} />
             ))
           : results.map((iconifyId) => {
-              const existing = icons.find(
-                (icon) => icon.iconifyId === iconifyId && !icon.trashed,
-              );
+              const existing = activeIconifyIds.has(iconifyId);
               const source = getSourceLabel(iconifyId);
               return (
                 <article
@@ -172,6 +195,9 @@ export function ExploreView() {
                       (definition) => definition.label === source,
                     )?.tone ?? "iris"
                   }
+                  data-interactive-surface="true"
+                  onPointerMove={trackInteractiveSurface}
+                  onPointerLeave={resetInteractiveSurface}
                   key={iconifyId}
                 >
                   <span className="explore-source">{source}</span>

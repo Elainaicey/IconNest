@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import {
   Archive,
   ArrowDownToLine,
@@ -69,18 +70,28 @@ export function Sidebar() {
     workspaceBytes,
     setCollectionManagerOpen,
   } = useLibrary();
+  const collectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const icon of icons) {
+      if (!icon.trashed) {
+        counts.set(icon.collection, (counts.get(icon.collection) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [icons]);
 
   return (
     <aside className={`sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <div className="brand-row">
-        <Link className="brand" href={workspacePaths.library}>
+        <Link className="brand" href={workspacePaths.library} aria-label="IconNest 首页">
           <span className="brand-mark">
             <Layers3 size={19} strokeWidth={2.2} />
           </span>
           <span>
             <strong>IconNest</strong>
-            <small>Icon workspace</small>
+            <small>Personal icon vault</small>
           </span>
+          <em>0.1</em>
         </Link>
         <button
           className="mobile-close"
@@ -113,6 +124,7 @@ export function Sidebar() {
               className={`nav-item ${active ? "active" : ""}`}
               href={item.href}
               aria-current={active ? "page" : undefined}
+              aria-label={item.label}
             >
               <NavIcon size={17} strokeWidth={1.9} />
               <span>{item.label}</span>
@@ -145,15 +157,14 @@ export function Sidebar() {
         {collections.map((collection, index) => {
           const href = workspacePaths.collection(collection);
           const active = pathname === href;
-          const count = icons.filter(
-            (icon) => !icon.trashed && icon.collection === collection,
-          ).length;
+          const count = collectionCounts.get(collection) ?? 0;
           return (
             <Link
               key={collection}
               className={`nav-item ${active ? "active" : ""}`}
               href={href}
               aria-current={active ? "page" : undefined}
+              aria-label={`${collection}，${count} 枚图标`}
             >
               <span className={`collection-dot tone-${index % 5}`} />
               <span className="nav-label">{collection}</span>

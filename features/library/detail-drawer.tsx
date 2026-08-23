@@ -1,5 +1,6 @@
 "use client";
 
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   ArrowUpRight,
   Braces,
@@ -66,32 +67,37 @@ export function DetailDrawer() {
   }
 
   return (
-    <>
-      <button
-        className={`detail-backdrop ${selectedIcon ? "visible" : ""}`}
-        onClick={() => setSelectedIconId(null)}
-        aria-label="关闭图标详情"
-        tabIndex={selectedIcon ? 0 : -1}
-        type="button"
-      />
-      <aside
-        className={`detail-drawer ${selectedIcon ? "open" : ""}`}
-        aria-hidden={!selectedIcon}
-        aria-label="图标详情"
-      >
+    <DialogPrimitive.Root
+      open={Boolean(selectedIcon)}
+      onOpenChange={(open) => {
+        if (!open) setSelectedIconId(null);
+      }}
+    >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="detail-backdrop" />
         {selectedIcon && (
-          <>
+          <DialogPrimitive.Content
+            className="detail-drawer"
+            aria-describedby="detail-description"
+          >
+            <DialogPrimitive.Description
+              className="visually-hidden"
+              id="detail-description"
+            >
+              预览、整理并导出当前图标
+            </DialogPrimitive.Description>
             <header className="detail-header">
               <div>
                 <span className="detail-eyebrow">图标详情</span>
-                <strong>{selectedIcon.iconifyId ?? "自定义 SVG"}</strong>
+                <DialogPrimitive.Title asChild>
+                  <strong>{selectedIcon.iconifyId ?? "自定义 SVG"}</strong>
+                </DialogPrimitive.Title>
               </div>
-              <IconButton
-                label="关闭详情"
-                onClick={() => setSelectedIconId(null)}
-              >
-                <X size={18} />
-              </IconButton>
+              <DialogPrimitive.Close asChild>
+                <IconButton label="关闭详情">
+                  <X size={18} />
+                </IconButton>
+              </DialogPrimitive.Close>
             </header>
 
             <div className="detail-scroll">
@@ -116,7 +122,7 @@ export function DetailDrawer() {
 
               <div className="preview-toolbar">
                 <label>
-                  <span>预览尺寸</span>
+                  <span>预览尺寸 <em>仅预览</em></span>
                   <input
                     type="range"
                     min="40"
@@ -304,7 +310,9 @@ export function DetailDrawer() {
                 className="danger-action"
                 onClick={() => {
                   if (selectedIcon.trashed) {
-                    deleteIcon(selectedIcon.id);
+                    if (window.confirm("永久删除这枚图标？此操作无法撤销。")) {
+                      deleteIcon(selectedIcon.id);
+                    }
                   } else {
                     updateIcon(selectedIcon.id, { trashed: true });
                     setSelectedIconId(null);
@@ -317,9 +325,9 @@ export function DetailDrawer() {
                 {selectedIcon.trashed ? "永久删除" : "移至回收站"}
               </button>
             </div>
-          </>
+          </DialogPrimitive.Content>
         )}
-      </aside>
-    </>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

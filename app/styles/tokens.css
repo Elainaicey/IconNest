@@ -1,0 +1,169 @@
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/mauve-alpha.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/mauve-dark-alpha.css";
+@import "@radix-ui/colors/iris.css";
+@import "@radix-ui/colors/iris-alpha.css";
+@import "@radix-ui/colors/iris-dark.css";
+@import "@radix-ui/colors/iris-dark-alpha.css";
+@import "@radix-ui/colors/plum.css";
+@import "@radix-ui/colors/plum-dark.css";
+@import "@radix-ui/colors/ruby.css";
+@import "@radix-ui/colors/ruby-dark.css";
+@import "@radix-ui/colors/sky.css";
+@import "@radix-ui/colors/sky-dark.css";
+@import "@radix-ui/colors/teal.css";
+@import "@radix-ui/colors/teal-dark.css";
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/amber-dark.css";
+
+:root {
+  --page: #f8f8fb;
+  --page-deep: #f2f1f6;
+  --panel: #ffffff;
+  --panel-soft: color-mix(in srgb, var(--mauve-2) 72%, white);
+  --panel-raised: rgba(255, 255, 255, 0.96);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.84);
+  --glass-border: rgba(255, 255, 255, 0.88);
+  --glass-edge: rgba(72, 66, 92, 0.11);
+  --surface: var(--mauve-2);
+  --surface-hover: var(--mauve-3);
+  --surface-active: var(--mauve-4);
+  --border: var(--mauve-6);
+  --border-strong: var(--mauve-7);
+  --text: var(--mauve-12);
+  --text-muted: var(--mauve-11);
+  --text-subtle: color-mix(in srgb, var(--mauve-11) 78%, var(--mauve-9));
+  --accent-surface: var(--iris-3);
+  --accent-hover: var(--iris-4);
+  --accent-border: var(--iris-7);
+  --accent: var(--iris-9);
+  --accent-hover-solid: var(--iris-10);
+  --accent-text: var(--iris-11);
+  --accent-strong: var(--iris-12);
+  --focus: var(--iris-8);
+  --danger-surface: var(--ruby-3);
+  --danger-hover: var(--ruby-4);
+  --danger-text: var(--ruby-11);
+  --success-surface: var(--teal-3);
+  --success-text: var(--teal-11);
+  --warning-surface: var(--amber-3);
+  --warning-text: var(--amber-11);
+
+  --radius-xs: 9px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+
+  --shadow-hairline: 0 1px 0 rgba(255, 255, 255, 0.94) inset;
+  --shadow-sm:
+    0 1px 2px rgba(42, 36, 61, 0.04),
+    0 8px 22px rgba(42, 36, 61, 0.045);
+  --shadow-md:
+    0 1px 2px rgba(42, 36, 61, 0.05),
+    0 18px 48px rgba(42, 36, 61, 0.08);
+  --shadow-lg:
+    0 2px 4px rgba(42, 36, 61, 0.06),
+    0 30px 90px rgba(42, 36, 61, 0.14);
+  --shadow-glass:
+    var(--shadow-hairline),
+    0 1px 2px rgba(52, 45, 76, 0.05),
+    0 18px 60px rgba(52, 45, 76, 0.09);
+
+  --ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --ease-spring: cubic-bezier(0.18, 0.9, 0.22, 1.08);
+  --duration-fast: 120ms;
+  --duration-base: 190ms;
+  --duration-panel: 280ms;
+
+  --sidebar-width: 268px;
+  --sidebar-collapsed-width: 88px;
+  --shell-gap: 14px;
+  --topbar-height: 66px;
+  --content-max: 1480px;
+}
+
+:root.dark {
+  --page: #151418;
+  --page-deep: #101014;
+  --panel: var(--mauve-2);
+  --panel-soft: color-mix(in srgb, var(--mauve-3) 82%, #111014);
+  --panel-raised: rgba(32, 30, 35, 0.96);
+  --glass: rgba(30, 28, 34, 0.7);
+  --glass-strong: rgba(31, 29, 35, 0.84);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.075);
+  --shadow-hairline: 0 1px 0 rgba(255, 255, 255, 0.055) inset;
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.14);
+  --shadow-md:
+    0 2px 4px rgba(0, 0, 0, 0.24),
+    0 20px 56px rgba(0, 0, 0, 0.2);
+  --shadow-lg:
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 34px 100px rgba(0, 0, 0, 0.34);
+  --shadow-glass:
+    var(--shadow-hairline),
+    0 2px 4px rgba(0, 0, 0, 0.24),
+    0 22px 70px rgba(0, 0, 0, 0.24);
+}
+
+[data-tone="iris"] {
+  --tone-2: var(--iris-2);
+  --tone-3: var(--iris-3);
+  --tone-4: var(--iris-4);
+  --tone-6: var(--iris-6);
+  --tone-7: var(--iris-7);
+  --tone-9: var(--iris-9);
+  --tone-11: var(--iris-11);
+  --tone-12: var(--iris-12);
+}
+
+[data-tone="ruby"] {
+  --tone-2: var(--ruby-2);
+  --tone-3: var(--ruby-3);
+  --tone-4: var(--ruby-4);
+  --tone-6: var(--ruby-6);
+  --tone-7: var(--ruby-7);
+  --tone-9: var(--ruby-9);
+  --tone-11: var(--ruby-11);
+  --tone-12: var(--ruby-12);
+}
+
+[data-tone="sky"] {
+  --tone-2: var(--sky-2);
+  --tone-3: var(--sky-3);
+  --tone-4: var(--sky-4);
+  --tone-6: var(--sky-6);
+  --tone-7: var(--sky-7);
+  --tone-9: var(--sky-9);
+  --tone-11: var(--sky-11);
+  --tone-12: var(--sky-12);
+}
+
+[data-tone="teal"] {
+  --tone-2: var(--teal-2);
+  --tone-3: var(--teal-3);
+  --tone-4: var(--teal-4);
+  --tone-6: var(--teal-6);
+  --tone-7: var(--teal-7);
+  --tone-9: var(--teal-9);
+  --tone-11: var(--teal-11);
+  --tone-12: var(--teal-12);
+}
+
+[data-tone="amber"] {
+  --tone-2: var(--amber-2);
+  --tone-3: var(--amber-3);
+  --tone-4: var(--amber-4);
+  --tone-6: var(--amber-6);
+  --tone-7: var(--amber-7);
+  --tone-9: var(--amber-9);
+  --tone-11: var(--amber-11);
+  --tone-12: var(--amber-12);
+}

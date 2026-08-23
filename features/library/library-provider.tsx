@@ -91,6 +91,8 @@ type LibraryContextValue = {
   bulkFavorite: () => void;
   bulkMove: (collection: string) => void;
   bulkTrash: () => void;
+  bulkRestore: () => void;
+  bulkDelete: () => void;
   restoreIcon: (id: string) => void;
   deleteIcon: (id: string) => void;
   createCollection: (name: string) => boolean;
@@ -198,16 +200,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [hydrated, sidebarCollapsed]);
 
   useEffect(() => {
+    if (!hydrated) return;
     let timeout: number | undefined;
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.toggle("dark", theme === "dark");
     document.documentElement.style.colorScheme = theme;
-    if (hydrated) {
-      try {
-        saveTheme(theme);
-      } catch {
-        timeout = window.setTimeout(() => setToast("主题偏好无法保存"), 0);
-      }
+    try {
+      saveTheme(theme);
+    } catch {
+      timeout = window.setTimeout(() => setToast("主题偏好无法保存"), 0);
     }
     return () => window.clearTimeout(timeout);
   }, [hydrated, theme]);
@@ -223,21 +224,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setMobileMenuOpen(false);
       setQuery("");
       setSelectedIds([]);
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const editing = Boolean(
+        target?.matches("input, textarea, select, [contenteditable='true']"),
+      );
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCommandMenuOpen((current) => !current);
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+      if (!editing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         setSidebarCollapsed((current) => !current);
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "i") {
+      if (!editing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "i") {
         event.preventDefault();
         uploadInputRef.current?.click();
       }
@@ -315,6 +322,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+
   const toggleSelectAll = useCallback((ids: string[]) => {
     setSelectedIds((current) => {
       const allSelected = ids.every((id) => current.includes(id));
@@ -357,6 +366,24 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     );
     setSelectedIds([]);
     notify("所选图标已移至回收站");
+  }, [notify, selectedIds]);
+
+  const bulkRestore = useCallback(() => {
+    const selected = new Set(selectedIds);
+    setIcons((current) =>
+      current.map((icon) =>
+        selected.has(icon.id) ? { ...icon, trashed: false } : icon,
+      ),
+    );
+    setSelectedIds([]);
+    notify(`已恢复 ${selectedIds.length} 枚图标`);
+  }, [notify, selectedIds]);
+
+  const bulkDelete = useCallback(() => {
+    const selected = new Set(selectedIds);
+    setIcons((current) => current.filter((icon) => !selected.has(icon.id)));
+    setSelectedIds([]);
+    notify(`已永久删除 ${selectedIds.length} 枚图标`);
   }, [notify, selectedIds]);
 
   const createCollection = useCallback(
@@ -697,11 +724,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       openIcon,
       toggleFavorite,
       toggleSelection,
-      clearSelection: () => setSelectedIds([]),
+      clearSelection,
       toggleSelectAll,
       bulkFavorite,
       bulkMove,
       bulkTrash,
+      bulkRestore,
+      bulkDelete,
       restoreIcon: (id) => {
         updateIcon(id, { trashed: false });
         notify("图标已恢复");
@@ -733,8 +762,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       addIcon,
       bulkFavorite,
       bulkMove,
+      bulkDelete,
       bulkTrash,
+      bulkRestore,
       collections,
+      clearSelection,
       copyCss,
       copyHtml,
       copyReact,
